@@ -9,8 +9,8 @@ experimentation.py
 **/__pycache__
 *.so
 
-ann.txt
 images/
+preprocessed_data/
 
 # Distribution / packaging
 .Python
