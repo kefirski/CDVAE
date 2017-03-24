@@ -1,9 +1,9 @@
 import collections
 import os
 import re
-
 import numpy as np
 from six.moves import cPickle
+from utils.utils import *
 
 
 class BatchLoader:
@@ -37,7 +37,15 @@ class BatchLoader:
                           tensors_path + 'characters_vocab.pkl']
         self.tensor_files = [tensors_path + 'train_tensor.npy', tensors_path + 'valid_tensor.npy']
 
-        self.preprocess_data()
+        idx_files_exist = fold(f_and, [os.path.exists(file) for file in self.idx_files], True)
+        tensor_files_exist = fold(f_and, [os.path.exists(file) for file in self.tensor_files], True)
+
+        if idx_files_exist and tensor_files_exist:
+            self.load_preprocessed_data()
+            print('preprocessed data have loaded')
+        else:
+            self.preprocess_data()
+            print('data have preprocessed')
 
     def build_character_vocab(self, data):
         """
@@ -108,9 +116,7 @@ class BatchLoader:
         del merged_annotations
         del merged_word_annotations
 
-        '''
-        for now annotations is array of maps {'image':path_to_image, 'ann': array of words}
-        '''
+        # for now annotations is array of maps {'image':path_to_image, 'ann': array of words}
         annotations = np.array([{'image': row[0], 'ann': row[1].split()}
                                 for row in annotations])
 
@@ -125,14 +131,30 @@ class BatchLoader:
                                     for row in target]
                                    for target in test_train_annotations]
 
-        np.save(self.tensor_files[0], self.test)
-        np.save(self.tensor_files[1], self.train)
+        self.embeddings_learning_data = [[self.word_to_idx[word] for word in row['ann']] for row in annotations]
+
+        np.save(self.tensor_files[0], self.train)
+        np.save(self.tensor_files[1], self.test)
 
         with open(self.idx_files[0], 'wb') as f:
             cPickle.dump(self.idx_to_word, f)
 
         with open(self.idx_files[1], 'wb') as f:
             cPickle.dump(self.idx_to_char, f)
+
+    def load_preprocessed_data(self):
+
+        [self.idx_to_word, self.idx_to_char] = [cPickle.load(open(file, "rb")) for file in self.idx_files]
+        [self.words_vocab_size, self.chars_vocab_size] = [len(idx) for idx in [self.idx_to_word, self.idx_to_char]]
+        [self.word_to_idx, self.char_to_idx] = [dict(zip(idx, range(len(idx)))) for idx in
+                                                [self.idx_to_word, self.idx_to_char]]
+        self.max_word_len = np.amax([len(word) for word in self.idx_to_word])
+
+        [self.train, self.test] = [np.load(path) for path in self.tensor_files]
+        self.num_annotations = len(self.test) + len(self.train)
+        self.max_seq_len = np.amax([len(row['word_ann']) for target in [self.train, self.test] for row in target])
+        
+        self.embeddings_learning_data = [row['word_ann'] for target in [self.train, self.test] for row in target]
 
     def encode_word(self, idx):
         result = np.zeros(self.words_vocab_size)
