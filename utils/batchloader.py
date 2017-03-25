@@ -163,16 +163,16 @@ class BatchLoader:
         """
         :return: pair of input and output for word embeddings learning for approproate indexes with aware of batches 
         """
+
         batches = [self.embeddings_learning_data[i % self.num_annotations]
                    for i in np.arange(self.word_embedding_index, self.word_embedding_index + num_batches)]
 
-        # result is array with dims [num_batches, 2, seq_len]
-        result = np.array([self._embedding_seq(batch) for batch in batches])
-        # for now result is array with dims [2, whole_seq_len]
+        self.word_embedding_index = (self.word_embedding_index + num_batches) % self.num_annotations
+
+        result = [self._embedding_seq(batch) for batch in batches]
         result = np.concatenate(result, 1)
 
         [input, target] = result
-
         return input, target
 
     def _embedding_seq(self, seq):
