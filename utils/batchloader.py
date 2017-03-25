@@ -3,7 +3,7 @@ import os
 import re
 import numpy as np
 from six.moves import cPickle
-from utils.utils import *
+from utils.functions import *
 
 
 class BatchLoader:
@@ -46,6 +46,9 @@ class BatchLoader:
         else:
             self.preprocess_data()
             print('data have preprocessed')
+
+        # this index is uses to iterate over all annotations to train word embeddings
+        self.word_embedding_index = 0
 
     def build_character_vocab(self, data):
         """
@@ -124,7 +127,7 @@ class BatchLoader:
         self.max_seq_len = np.amax([len(line['ann']) for line in annotations])
 
         np.random.shuffle(annotations)
-        test_train_annotations = [annotations[:4500], annotations[4500:]]
+        test_train_annotations = [annotations[:500], annotations[500:]]
         [self.test, self.train] = [[{'image': row['image'],
                                      'word_ann': [self.word_to_idx[word] for word in row['ann']],
                                      'character_ann': [self.encode_characters(word) for word in row['ann']]}
@@ -153,8 +156,44 @@ class BatchLoader:
         [self.train, self.test] = [np.load(path) for path in self.tensor_files]
         self.num_annotations = len(self.test) + len(self.train)
         self.max_seq_len = np.amax([len(row['word_ann']) for target in [self.train, self.test] for row in target])
-        
+
         self.embeddings_learning_data = [row['word_ann'] for target in [self.train, self.test] for row in target]
+
+    def next_embedding_seq(self, num_batches):
+        """
+        :return: pair of input and output for word embeddings learning for approproate indexes with aware of batches 
+        """
+        batches = [self.embeddings_learning_data[i % self.num_annotations]
+                   for i in np.arange(self.word_embedding_index, self.word_embedding_index + num_batches)]
+
+        # result is array with dims [num_batches, 2, seq_len]
+        result = np.array([self._embedding_seq(batch) for batch in batches])
+        # for now result is array with dims [2, whole_seq_len]
+        result = np.concatenate(result, 1)
+
+        [input, target] = result
+
+        return input, target
+
+    def _embedding_seq(self, seq):
+        """
+        :return: input and output for word embeddings learning,
+                 where input = [b, b, c, c, d, d, e, e]
+                 and output  = [a, c, b, d, d, e, d, g]
+                 for seq [a, b, c, d, e, g] at index i
+        """
+
+        # input, target
+        result = [[], []]
+        seq_len = len(seq)
+
+        for i in range(seq_len - 2):
+            result[0].append(seq[i + 1])
+            result[0].append(seq[i + 1])
+            result[1].append(seq[i])
+            result[1].append(seq[i + 2])
+
+        return np.array(result)
 
     def encode_word(self, idx):
         result = np.zeros(self.words_vocab_size)
