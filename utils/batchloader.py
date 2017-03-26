@@ -209,9 +209,6 @@ class BatchLoader:
         :return: pair of input and output for word embeddings learning for approproate indexes with aware of batches 
         """
 
-        # batches = [self.embeddings_learning_data[i % self.num_annotations]
-        #            for i in np.arange(self.word_embeddings_index, self.word_embeddings_index + seq_len)]
-
         data = np.load(self.embeddings_learning_file)
 
         embedding_seq = np.array([data[:, i % self.num_annotations]
