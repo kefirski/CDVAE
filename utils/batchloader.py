@@ -193,21 +193,13 @@ class BatchLoader:
 
         max_batch_len = np.amax([len(batch) for batch in word_level_encoder_input])
 
-        for i, line in enumerate(word_level_encoder_input):
-            to_add = max_batch_len - len(line)
-            word_level_encoder_input[i] = line + to_add * [self.word_to_idx[self.word_level_pad_token]]
+        for i in range(len(word_level_encoder_input)):
+            to_add = max_batch_len - len(word_level_encoder_input[i])
 
-        for i, line in enumerate(character_level_encoder_input):
-            to_add = max_batch_len - len(line)
-            character_level_encoder_input[i] = line + to_add * [self.encode_characters(self.word_level_pad_token)]
-
-        for i, line in enumerate(decoder_input):
-            to_add = max_batch_len - len(line) - 1
-            decoder_input[i] = line + to_add * [self.word_to_idx[self.word_level_pad_token]]
-
-        for i, line in enumerate(decoder_output):
-            to_add = max_batch_len - len(line) - 1
-            decoder_output[i] = line + to_add * [self.word_to_idx[self.word_level_pad_token]]
+            word_level_encoder_input[i] += to_add * [self.word_to_idx[self.word_level_pad_token]]
+            character_level_encoder_input[i] += to_add * [self.encode_characters(self.word_level_pad_token)]
+            decoder_input[i] += to_add * [self.word_to_idx[self.word_level_pad_token]]
+            decoder_output[i] += to_add * [self.word_to_idx[self.word_level_pad_token]]
 
         return np.array(word_level_encoder_input), np.array(character_level_encoder_input), np.array(latent_batches), \
                np.array(decoder_input), np.array(decoder_output)
