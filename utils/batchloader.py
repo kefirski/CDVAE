@@ -7,7 +7,7 @@ from utils.functions import *
 
 
 class BatchLoader:
-    def __init__(self, data_path_prefix='../'):
+    def __init__(self, data_path_prefix='../', force_preprocessing=False):
         """
         :param data_path_prefix: string prefix to path of data folder
         """
@@ -36,19 +36,21 @@ class BatchLoader:
         self.idx_files = [tensors_path + 'words_vocab.pkl',
                           tensors_path + 'characters_vocab.pkl']
         self.tensor_files = [tensors_path + 'train_tensor.npy', tensors_path + 'valid_tensor.npy']
+        self.embeddings_learning_file = tensors_path + 'embedd_idx.npy'
 
         idx_files_exist = fold(f_and, [os.path.exists(file) for file in self.idx_files], True)
         tensor_files_exist = fold(f_and, [os.path.exists(file) for file in self.tensor_files], True)
+        embedding_file_exist = os.path.exists(self.embeddings_learning_file)
 
-        if idx_files_exist and tensor_files_exist:
+        if idx_files_exist and tensor_files_exist and embedding_file_exist and not force_preprocessing:
             self.load_preprocessed_data()
             print('preprocessed data have loaded')
         else:
             self.preprocess_data()
             print('data have preprocessed')
 
-        # this index is uses to iterate over all annotations to train word embeddings
-        self.word_embedding_index = 0
+        self.word_embeddings_index = 0
+        self.annotations_index = [0, 0]
 
     def build_character_vocab(self, data):
         """
@@ -128,16 +130,21 @@ class BatchLoader:
 
         np.random.shuffle(annotations)
         test_train_annotations = [annotations[:500], annotations[500:]]
-        [self.test, self.train] = [[{'image': row['image'],
-                                     'word_ann': [self.word_to_idx[word] for word in row['ann']],
-                                     'character_ann': [self.encode_characters(word) for word in row['ann']]}
-                                    for row in target]
-                                   for target in test_train_annotations]
+        [self.test_data, self.train_data] = [[{'image': row['image'],
+                                               'word_ann': [self.word_to_idx[word] for word in row['ann']],
+                                               'character_ann': [self.encode_characters(word) for word in row['ann']]}
+                                              for row in target]
+                                             for target in test_train_annotations]
 
-        self.embeddings_learning_data = [[self.word_to_idx[word] for word in row['ann']] for row in annotations]
+        embeddings_learning_data = [[self.word_to_idx[word] for word in row['ann']] for row in annotations]
+        embeddings_learning_data = [self._embedding_seq(batch) for batch in embeddings_learning_data]
+        embeddings_learning_data = np.concatenate(embeddings_learning_data, 1).astype(int)
+        self.embeddings_len = len(embeddings_learning_data[0])
 
-        np.save(self.tensor_files[0], self.train)
-        np.save(self.tensor_files[1], self.test)
+        np.save(self.embeddings_learning_file, embeddings_learning_data)
+
+        np.save(self.tensor_files[0], self.train_data)
+        np.save(self.tensor_files[1], self.test_data)
 
         with open(self.idx_files[0], 'wb') as f:
             cPickle.dump(self.idx_to_word, f)
@@ -153,26 +160,74 @@ class BatchLoader:
                                                 [self.idx_to_word, self.idx_to_char]]
         self.max_word_len = np.amax([len(word) for word in self.idx_to_word])
 
-        [self.train, self.test] = [np.load(path) for path in self.tensor_files]
-        self.num_annotations = len(self.test) + len(self.train)
-        self.max_seq_len = np.amax([len(row['word_ann']) for target in [self.train, self.test] for row in target])
+        [self.train_data, self.test_data] = [np.load(path) for path in self.tensor_files]
+        self.num_annotations = len(self.test_data) + len(self.train_data)
+        self.max_seq_len = np.amax(
+            [len(row['word_ann']) for target in [self.train_data, self.test_data] for row in target])
 
-        self.embeddings_learning_data = [row['word_ann'] for target in [self.train, self.test] for row in target]
+        embeddings_learning_data = np.load(self.embeddings_learning_file)
+        self.embeddings_len = len(embeddings_learning_data[0])
 
-    def next_embedding_seq(self, num_batches):
+    def next_batch(self, num_batches, target):
+        """
+        :param num_batches: num_batches to lockup from data 
+        :param target: if target == 'train' then train data uses as target, in other case test data is used
+        :return: encoder word and character input, latent representations, decoder input and output
+        """
+
+        target = 0 if target == 'train' else 1
+
+        target_data = [self.train_data, self.test_data][target]
+        target_len = len(target_data)
+        raw_batches = [target_data[i % target_len]
+                       for i in np.arange(self.annotations_index[target], self.annotations_index[target] + num_batches)]
+
+        word_level_encoder_input = [batch['word_ann'] for batch in raw_batches]
+        character_level_encoder_input = [batch['character_ann'] for batch in raw_batches]
+        latent_batches = [batch['image'] for batch in raw_batches]
+
+        decoder_input = [[self.word_to_idx[self.go_token]] + batch for batch in word_level_encoder_input]
+        decoder_output = [batch + [self.word_to_idx[self.stop_token]] for batch in word_level_encoder_input]
+
+        self.annotations_index[target] = (self.annotations_index[target] + num_batches) % target_len
+
+        max_batch_len = np.amax([len(batch) for batch in word_level_encoder_input])
+
+        for i, line in enumerate(word_level_encoder_input):
+            to_add = max_batch_len - len(line)
+            word_level_encoder_input[i] = line + to_add * [self.word_to_idx[self.word_level_pad_token]]
+
+        for i, line in enumerate(character_level_encoder_input):
+            to_add = max_batch_len - len(line)
+            character_level_encoder_input[i] = line + to_add * [self.encode_characters(self.word_level_pad_token)]
+
+        for i, line in enumerate(decoder_input):
+            to_add = max_batch_len - len(line) - 1
+            decoder_input[i] = line + to_add * [self.word_to_idx[self.word_level_pad_token]]
+
+        for i, line in enumerate(decoder_output):
+            to_add = max_batch_len - len(line) - 1
+            decoder_output[i] = line + to_add * [self.word_to_idx[self.word_level_pad_token]]
+
+        return np.array(word_level_encoder_input), np.array(character_level_encoder_input), np.array(latent_batches), \
+               np.array(decoder_input), np.array(decoder_output)
+
+    def next_embedding_seq(self, seq_len):
         """
         :return: pair of input and output for word embeddings learning for approproate indexes with aware of batches 
         """
 
-        batches = [self.embeddings_learning_data[i % self.num_annotations]
-                   for i in np.arange(self.word_embedding_index, self.word_embedding_index + num_batches)]
+        # batches = [self.embeddings_learning_data[i % self.num_annotations]
+        #            for i in np.arange(self.word_embeddings_index, self.word_embeddings_index + seq_len)]
 
-        self.word_embedding_index = (self.word_embedding_index + num_batches) % self.num_annotations
+        data = np.load(self.embeddings_learning_file)
 
-        result = [self._embedding_seq(batch) for batch in batches]
-        result = np.concatenate(result, 1)
+        embedding_seq = np.array([data[:, i % self.num_annotations]
+                                  for i in np.arange(self.word_embeddings_index, self.word_embeddings_index + seq_len)])
 
-        [input, target] = result
+        self.word_embeddings_index = (self.word_embeddings_index + seq_len) % self.num_annotations
+
+        [input, target] = embedding_seq.T
         return input, target
 
     def _embedding_seq(self, seq):
