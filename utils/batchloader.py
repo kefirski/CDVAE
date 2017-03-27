@@ -38,8 +38,8 @@ class BatchLoader:
         self.tensor_files = [tensors_path + 'train_tensor.npy', tensors_path + 'valid_tensor.npy']
         self.embeddings_learning_file = tensors_path + 'embedd_idx.npy'
 
-        idx_files_exist = fold(f_and, [os.path.exists(file) for file in self.idx_files], True)
-        tensor_files_exist = fold(f_and, [os.path.exists(file) for file in self.tensor_files], True)
+        idx_files_exist = all([os.path.exists(file) for file in self.idx_files])
+        tensor_files_exist = all([os.path.exists(file) for file in self.tensor_files])
         embedding_file_exist = os.path.exists(self.embeddings_learning_file)
 
         if idx_files_exist and tensor_files_exist and embedding_file_exist and not force_preprocessing:
@@ -232,10 +232,8 @@ class BatchLoader:
         seq_len = len(seq)
 
         for i in range(seq_len - 2):
-            result[0].append(seq[i + 1])
-            result[0].append(seq[i + 1])
-            result[1].append(seq[i])
-            result[1].append(seq[i + 2])
+            result[0] += [seq[i + 1], seq[i + 1]]
+            result[1] += [seq[i], seq[i + 2]]
 
         return np.array(result)
 

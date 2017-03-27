@@ -1,3 +1,6 @@
+from .functions import *
+
+
 class Parameters:
     def __init__(self, max_word_len, max_seq_len, word_vocab_size, char_vocab_size):
         self.max_word_len = int(max_word_len)
@@ -8,3 +11,6 @@ class Parameters:
 
         self.word_embed_size = 300
         self.char_embed_size = 15
+
+        self.kernels = [(1, 25), (2, 50), (3, 75), (4, 100), (5, 125), (6, 150)]
+        self.sum_depth = fold(lambda x, y: x + y, [depth for _, depth in self.kernels], 0)
