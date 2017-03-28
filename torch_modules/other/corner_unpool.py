@@ -25,11 +25,10 @@ class Corner2dMaxUnpool(nn.Module):
                                          for i in range(self.kernel_size - 1, new_height, self.kernel_size)
                                          for j in range(self.kernel_size - 1, new_width, self.kernel_size)])) \
             .view(height, width)
+        indexes = indexes.repeat(batch_size, channels, 1, 1)
 
         if input.is_cuda:
             indexes = indexes.cuda()
-
-        indexes = indexes.repeat(batch_size, channels, 1, 1)
 
         result = self.unpool(input, indexes)
 

@@ -17,5 +17,5 @@ class HLVAE(nn.Module):
 
         self.encoder = Encoder(self.params)
 
-    def forward:
+    def forward(self):
         pass
