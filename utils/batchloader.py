@@ -3,7 +3,7 @@ import os
 import re
 import numpy as np
 from six.moves import cPickle
-from utils.functions import *
+from scipy import misc
 
 
 class BatchLoader:
@@ -104,6 +104,8 @@ class BatchLoader:
         performs data preprocessing
         """
 
+        print('Data preprocessing have started. Be patient –– it will take a while')
+
         # be aware that ann.txt should't contain empty string in the end of file
         with open(self.ann_path, "r") as f:
             annotations = f.read()
@@ -131,6 +133,7 @@ class BatchLoader:
         np.random.shuffle(annotations)
         test_train_annotations = [annotations[:500], annotations[500:]]
         [self.test_data, self.train_data] = [[{'image': row['image'],
+                                               'image_size': list(misc.imread(self.images_path + row['image']).shape),
                                                'word_ann': [self.word_to_idx[word] for word in row['ann']],
                                                'character_ann': [self.encode_characters(word) for word in row['ann']]}
                                               for row in target]

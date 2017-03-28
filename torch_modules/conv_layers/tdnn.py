@@ -15,16 +15,14 @@ class TDNN(nn.Module):
 
         self.input_embed_size = input_embed_size
 
-        self.kernels = [Parameter(t.Tensor(out_dim, input_embed_size, kW).normal_(0, 0.05))
-                        for kW, out_dim in kernels]
-        self._add_to_parameters(self.kernels, 'TDNN_kernel')
+        self.kernels = nn.ParameterList([Parameter(t.Tensor(out_dim, input_embed_size, kW).normal_(0, 0.05))
+                                         for kW, out_dim in kernels])
 
         self.use_bias = bias
 
         if self.use_bias:
-            self.biases = [Parameter(t.Tensor(out_dim).normal_(0, 0.05))
-                           for _, out_dim in kernels]
-            self._add_to_parameters(self.biases, 'TDNN_biases')
+            self.biases = nn.ParameterList([Parameter(t.Tensor(out_dim).normal_(0, 0.05))
+                                            for _, out_dim in kernels])
 
     def forward(self, x):
         """
@@ -54,6 +52,3 @@ class TDNN(nn.Module):
 
         return x
 
-    def _add_to_parameters(self, parameters, name):
-        for i, parameter in enumerate(parameters):
-            self.register_parameter(name='{}-{}'.format(name, i), param=parameter)
