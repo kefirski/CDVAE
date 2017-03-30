@@ -11,6 +11,10 @@ class Corner2dMaxUnpool(nn.Module):
         self.unpool = nn.MaxUnpool2d(kernel_size)
 
     def forward(self, input):
+        """
+        :param input: tensor with shape of [batch_size, input_channels, in_height, in_width] 
+        :return: unpooled tensor with elements in right bottom corners of output 'cells'
+        """
 
         input_size = input.size()
         assert len(input_size) == 4, 'Invalid input rang. Must be equal to 4, but {} found'.format(len(input_size))

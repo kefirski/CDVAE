@@ -43,9 +43,11 @@ class BatchLoader:
         embedding_file_exist = os.path.exists(self.embeddings_learning_file)
 
         if idx_files_exist and tensor_files_exist and embedding_file_exist and not force_preprocessing:
+            print('preprocessed data loading have started')
             self.load_preprocessed_data()
             print('preprocessed data have loaded')
         else:
+            print('data preprocessing have started. Be patient –– it will take a while')
             self.preprocess_data()
             print('data have preprocessed')
 
@@ -103,8 +105,6 @@ class BatchLoader:
         """
         performs data preprocessing
         """
-
-        print('Data preprocessing have started. Be patient –– it will take a while')
 
         # be aware that ann.txt should't contain empty string in the end of file
         with open(self.ann_path, "r") as f:

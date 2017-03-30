@@ -1,7 +1,6 @@
 import torch as t
 import torch.nn as nn
 import torch.nn.functional as F
-
 from torch_modules.other.highway import Highway
 from utils.functions import parameters_allocation_check
 
