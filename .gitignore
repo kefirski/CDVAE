@@ -10,6 +10,7 @@ experimentation.py
 *.so
 
 images/
+word_embeddings.npy
 preprocessed_data/
 
 # Distribution / packaging
