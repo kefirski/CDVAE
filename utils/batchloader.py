@@ -175,7 +175,7 @@ class BatchLoader:
         """
         :param num_batches: num_batches to lockup from data 
         :param target: if target == 'train' then train data uses as target, in other case test data is used
-        :return: encoder word and character input, latent representations, decoder input and output
+        :return: encoder word and character input, latent representations, its sizes, decoder input and output
         """
 
         target = 0 if target == 'train' else 1
@@ -188,6 +188,7 @@ class BatchLoader:
         word_level_encoder_input = [batch['word_ann'] for batch in raw_batches]
         character_level_encoder_input = [batch['character_ann'] for batch in raw_batches]
         latent_batches = [batch['image'] for batch in raw_batches]
+        latent_sizes = [batch['image_size'] for batch in raw_batches]
 
         decoder_input = [[self.word_to_idx[self.go_token]] + batch for batch in word_level_encoder_input]
         decoder_output = [batch + [self.word_to_idx[self.stop_token]] for batch in word_level_encoder_input]
@@ -205,7 +206,7 @@ class BatchLoader:
             decoder_output[i] += to_add * [self.word_to_idx[self.word_level_pad_token]]
 
         return np.array(word_level_encoder_input), np.array(character_level_encoder_input), np.array(latent_batches), \
-               np.array(decoder_input), np.array(decoder_output)
+               np.array(latent_sizes)[:, :2], np.array(decoder_input), np.array(decoder_output)
 
     def next_embedding_seq(self, seq_len):
         """

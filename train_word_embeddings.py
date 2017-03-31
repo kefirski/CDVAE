@@ -12,13 +12,13 @@ from torch_modules.losses.neg_loss import NEG_loss
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='word2vec')
-    parser.add_argument('--num-iterations', type=int, default=10000000, metavar='NI',
+    parser.add_argument('--num-iterations', type=int, default=5, metavar='NI',
                         help='num iterations (default: 10000000)')
     parser.add_argument('--batch-size', type=int, default=10, metavar='BS',
                         help='batch size (default: 10)')
     parser.add_argument('--num-sample', type=int, default=5, metavar='NS',
                         help='num sample (default: 5)')
-    parser.add_argument('--use-cuda', type=bool, default=True, metavar='CUDA',
+    parser.add_argument('--use-cuda', type=bool, default=False, metavar='CUDA',
                         help='use cuda (default: True)')
     args = parser.parse_args()
 

@@ -53,6 +53,8 @@ class SeqDeconv(nn.Module):
         # final deconv to emit output with given size
         x = self.max_unpool(x)
         x = F.conv_transpose2d(x, self.last_kernel, self.last_bias, padding=(h_padding, w_padding))
+
+        # cropp image if size is odd
         x = x if h_even else x[:, :, :-1, :]
         x = x if w_even else x[:, :, :, :-1]
 
