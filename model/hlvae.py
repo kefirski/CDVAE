@@ -76,7 +76,7 @@ class HLVAE(nn.Module):
     @staticmethod
     def sample_z(mu, std, use_cuda):
         """
-        Sample differentiable z ~ N(0, I)
+        Sample differentiable z ~ N(mu, std)
         """
 
         z = Variable(t.rand(mu.size()))

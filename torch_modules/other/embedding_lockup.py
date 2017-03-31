@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import torch as t
 import torch.nn as nn
@@ -11,6 +12,8 @@ class Embedding(nn.Module):
 
         self.params = params
 
+        word_embeddings_path = path + 'data/word_embeddings.npy'
+        assert os.path.exists(word_embeddings_path), 'Word embeddings not found'
         word_embed = np.load(path + 'data/word_embeddings.npy')
 
         self.word_embed = nn.Embedding(self.params.word_vocab_size, self.params.word_embed_size)
