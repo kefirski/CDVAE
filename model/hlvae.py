@@ -1,5 +1,7 @@
 import torch as t
 import torch.nn as nn
+import numpy as np
+from scipy import misc
 import torch.nn.functional as F
 from .encoder import Encoder
 from utils.functions import *
@@ -29,14 +31,14 @@ class HLVAE(nn.Module):
         """
         :param encoder_word_input: An tensor with shape of [batch_size, seq_len] of Long type
         :param encoder_character_input: An tensor with shape of [batch_size, seq_len, max_word_len] of Long type
-        :param target_images: target image path to estimate image reconstruction loss
+        :param target_images: target images path to estimate image reconstruction loss
         :param image_sizes: sizes of target images
         :param decoder_word_input: An tensor with shape of [batch_size, max_seq_len + 1] of Long type
         :param drop_prob: probability of an element of decoder input to be zeroed in sense of dropout
         :param z: tensor containing context if sampling is performing
         :return: unnormalized logits of sentence words distribution probabilities
                     with shape of [batch_size, seq_len, word_vocab_size]
-                 z reconstruction loss
+                 bce between latent representation and target representation
                  adverstal loss result
         """
 
@@ -64,19 +66,21 @@ class HLVAE(nn.Module):
 
             encoder_input = self.embedding(encoder_word_input, encoder_character_input)
             context = self.encoder(encoder_input)
+            context = [context[i].unsqueeze(0) for i in range(batch_size)]
 
-            mu = [self.hidden_to_mu(context[i].unsqueeze(0), size) for i, size in enumerate(image_sizes)]
-            logvar = [self.hidden_to_logvar(context[i].unsqueeze(0), size) for i, size in enumerate(image_sizes)]
+            mu = [self.hidden_to_mu(context[i], size) for i, size in enumerate(image_sizes)]
+            logvar = [self.hidden_to_logvar(context[i], size) for i, size in enumerate(image_sizes)]
             std = [t.exp(0.5 * var) for var in logvar]
-
             z = [HLVAE.sample_z(mu[i], std[i], use_cuda).sigmoid() for i in range(batch_size)]
+
+            bce = t.cat([HLVAE.reconstruction_loss(z[i], target_images[i]) for i in range(batch_size)]).mean()
 
             return
 
     @staticmethod
     def sample_z(mu, std, use_cuda):
         """
-        Sample differentiable z ~ N(mu, std)
+        :return: differentiable z ~ N(mu, std)
         """
 
         z = Variable(t.rand(mu.size()))
@@ -84,3 +88,20 @@ class HLVAE(nn.Module):
             z = z.cuda()
 
         return z * std + mu
+
+    @staticmethod
+    def reconstruction_loss(z, image_path):
+        """
+        :param z: tensor with shape of [1, 3, height, width]
+        :return: MSE between latent representation z and target representation
+        """
+
+        image = misc.imread(image_path)/255
+        image = (Variable(t.from_numpy(image))).float().transpose(2, 0).contiguous()
+        if z.is_cuda:
+            image = image.cuda()
+
+        z = z.squeeze(0).view(-1)
+        image = image.view(-1)
+
+        return t.pow(z - image, 2).mean()

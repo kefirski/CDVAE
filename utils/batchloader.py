@@ -132,8 +132,8 @@ class BatchLoader:
 
         np.random.shuffle(annotations)
         test_train_annotations = [annotations[:500], annotations[500:]]
-        [self.test_data, self.train_data] = [[{'image': row['image'],
-                                               'image_size': list(misc.imread(self.images_path + row['image']).shape),
+        [self.test_data, self.train_data] = [[{'image': self.images_path + row['image'],
+                                               'image_size': list(misc.imread(self.images_path + row['image']).shape)[:2],
                                                'word_ann': [self.word_to_idx[word] for word in row['ann']],
                                                'character_ann': [self.encode_characters(word) for word in row['ann']]}
                                               for row in target]
