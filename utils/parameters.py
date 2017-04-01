@@ -15,17 +15,25 @@ class Parameters:
         self.kernels = [(1, 25), (2, 50), (3, 75), (4, 100), (5, 125), (6, 150)]
         self.sum_depth = fold(lambda x, y: x + y, [depth for _, depth in self.kernels], 0)
 
-        self.encoder_rnn_size = 250
+        self.encoder_rnn_size = 200
         self.encoder_num_layers = 2
 
-        self.hidden_size = 16384
-        self.hidden_view = [256, 8, 8]
+        self.latent_variable_size = 150
+
+        self.hidden_size = 6400
+        self.hidden_view = [100, 8, 8]
 
         # (input_channels, output_channels, kernel_size, (out_h, out_w))
-        self.deconv_kernels = [(256, 256, 5, (16, 16)),
-                               (256, 92, 5, (32, 32)),
+        self.deconv_kernels = [(100, 95, 5, (16, 16)),
+                               (95, 92, 5, (32, 32)),
                                (92, 20, 5, (64, 64)),
                                (20, 15, 5, (128, 128)),
-                               (15, 10, 5, (256, 256))]
-        self.last_kernel = 10, 3, 5, (512, 512)
+                               (15, 6, 5, (256, 256))]
+        self.last_kernel = 6, 3, 5, (512, 512)
         self.deconv_num_layers = len(self.deconv_kernels)
+
+        # (out_chanels, input_chanels, kernel_size)
+        self.discr_kernels = [(5, 3, 5),
+                              (8, 5, 5),
+                              (15, 8, 5),
+                              (20, 15, 5)]

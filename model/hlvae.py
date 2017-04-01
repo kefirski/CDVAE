@@ -1,14 +1,8 @@
 import torch as t
 import torch.nn as nn
-import numpy as np
-from scipy import misc
 import torch.nn.functional as F
-from .encoder import Encoder
 from utils.functions import *
-from torch.autograd import Variable
-from torch_modules.other.embedding_lockup import Embedding
-from torch_modules.conv_layers.sequential_deconv import SeqDeconv
-
+from .seq2imageVAE import SeqToImage
 
 class HLVAE(nn.Module):
     def __init__(self, params):
@@ -16,92 +10,13 @@ class HLVAE(nn.Module):
 
         self.params = params
 
-        self.embedding = Embedding(self.params, '')
-
-        self.encoder = Encoder(self.params)
-
-        self.hidden_to_mu = SeqDeconv(self.params)
-        self.hidden_to_logvar = SeqDeconv(self.params)
+        self.seq_to_image = SeqToImage(params)
 
     def forward(self, drop_prob=0,
                 encoder_word_input=None, encoder_character_input=None,
-                target_images=None, image_sizes=None,
+                target_images=None, target_image_sizes=None,
+                real_images=None,
                 decoder_word_input=None,
                 z=None):
-        """
-        :param encoder_word_input: An tensor with shape of [batch_size, seq_len] of Long type
-        :param encoder_character_input: An tensor with shape of [batch_size, seq_len, max_word_len] of Long type
-        :param target_images: target images path to estimate image reconstruction loss
-        :param image_sizes: sizes of target images
-        :param decoder_word_input: An tensor with shape of [batch_size, max_seq_len + 1] of Long type
-        :param drop_prob: probability of an element of decoder input to be zeroed in sense of dropout
-        :param z: tensor containing context if sampling is performing
-        :return: unnormalized logits of sentence words distribution probabilities
-                    with shape of [batch_size, seq_len, word_vocab_size]
-                 bce between latent representation and target representation
-                 adverstal loss result
-        """
+        pass
 
-        assert parameters_allocation_check(self), \
-            'Invalid CUDA options. Parameters should be allocated in the same memory'
-        use_cuda = self.embedding.word_embed.weight.is_cuda
-
-        is_train = fold(lambda acc, parameter: acc and parameter is not None,
-                        [encoder_word_input, encoder_character_input, target_images, image_sizes, decoder_word_input],
-                        True) and z is None
-        is_sampling = fold(lambda acc, parameter: acc and parameter is None,
-                           [encoder_word_input, encoder_character_input, target_images, image_sizes,
-                            decoder_word_input],
-                           True) and z is not None
-        assert is_train or is_sampling, 'Invalid input options'
-
-        if is_train:
-            ''' Get context from encoder and sample z ~ N(mu, std)
-            '''
-
-            assert encoder_word_input.size()[0] == len(image_sizes), \
-                'while training each batch should be provided with image size to sample with'
-
-            [batch_size, _] = encoder_word_input.size()
-
-            encoder_input = self.embedding(encoder_word_input, encoder_character_input)
-            context = self.encoder(encoder_input)
-            context = [context[i].unsqueeze(0) for i in range(batch_size)]
-
-            mu = [self.hidden_to_mu(context[i], size) for i, size in enumerate(image_sizes)]
-            logvar = [self.hidden_to_logvar(context[i], size) for i, size in enumerate(image_sizes)]
-            std = [t.exp(0.5 * var) for var in logvar]
-            z = [HLVAE.sample_z(mu[i], std[i], use_cuda).sigmoid() for i in range(batch_size)]
-
-            mce = t.cat([HLVAE.mce(z[i], target_images[i]) for i in range(batch_size)]).mean()
-
-            return
-
-    @staticmethod
-    def sample_z(mu, std, use_cuda):
-        """
-        :return: differentiable z ~ N(mu, std)
-        """
-
-        z = Variable(t.rand(mu.size()))
-        if use_cuda:
-            z = z.cuda()
-
-        return z * std + mu
-
-    @staticmethod
-    def mce(z, image_path):
-        """
-        :param z: tensor with shape of [1, 3, height, width]
-        :return: MSE between latent representation z and target representation
-        """
-
-        image = misc.imread(image_path)/255
-        image = (Variable(t.from_numpy(image))).float().transpose(2, 0).contiguous()
-        if z.is_cuda:
-            image = image.cuda()
-
-        z = z.squeeze(0).view(-1)
-        image = image.view(-1)
-
-        return t.pow(z - image, 2).mean()

@@ -187,8 +187,11 @@ class BatchLoader:
 
         word_level_encoder_input = [batch['word_ann'] for batch in raw_batches]
         character_level_encoder_input = [batch['character_ann'] for batch in raw_batches]
+
         latent_batches = [batch['image'] for batch in raw_batches]
         latent_sizes = [batch['image_size'] for batch in raw_batches]
+        real_idx = np.random.choice(len(target_data), num_batches)
+        real_latent_batches = [batch['image'] for batch in target_data[real_idx]]
 
         decoder_input = [[self.word_to_idx[self.go_token]] + batch for batch in word_level_encoder_input]
         decoder_output = [batch + [self.word_to_idx[self.stop_token]] for batch in word_level_encoder_input]
@@ -206,7 +209,8 @@ class BatchLoader:
             decoder_output[i] += to_add * [self.word_to_idx[self.word_level_pad_token]]
 
         return np.array(word_level_encoder_input), np.array(character_level_encoder_input), np.array(latent_batches), \
-               np.array(latent_sizes)[:, :2], np.array(decoder_input), np.array(decoder_output)
+               np.array(real_latent_batches), np.array(latent_sizes)[:, :2], \
+               np.array(decoder_input), np.array(decoder_output)
 
     def next_embedding_seq(self, seq_len):
         """

@@ -15,7 +15,8 @@ class SeqDeconv(nn.Module):
 
         self.deconvolutions = nn.ModuleList([nn.ConvTranspose2d(in_chan, out_chan, kernel_size, bias=True, padding=2)
                                              for in_chan, out_chan, kernel_size, _ in self.params.deconv_kernels])
-        [init.xavier_uniform(deconv.weight, gain=math.sqrt(2.0)) for deconv in self.deconvolutions]
+        for deconv in self.deconvolutions:
+            init.xavier_uniform(deconv.weight, gain=math.sqrt(2.0))
 
         last_in, last_out, last_kernel_size, _ = self.params.last_kernel
         self.last_kernel = Parameter(t.Tensor(last_in, last_out, last_kernel_size, last_kernel_size))

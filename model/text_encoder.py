@@ -5,9 +5,9 @@ from torch_modules.other.highway import Highway
 from utils.functions import parameters_allocation_check
 
 
-class Encoder(nn.Module):
+class TextEncoder(nn.Module):
     def __init__(self, params):
-        super(Encoder, self).__init__()
+        super(TextEncoder, self).__init__()
 
         self.params = params
 
@@ -20,9 +20,6 @@ class Encoder(nn.Module):
                           bidirectional=True)
 
         self.hw2 = Highway(self.params.encoder_rnn_size * 2, 2, F.relu)
-        self.fc1 = nn.Linear(self.params.encoder_rnn_size * 2, 4096)
-        self.hw3 = Highway(4096, 2, F.relu)
-        self.to_hidden = nn.Linear(4096, self.params.hidden_size)
 
     def forward(self, input):
         """
@@ -46,12 +43,8 @@ class Encoder(nn.Module):
         final_state = final_state.view(self.params.encoder_num_layers, 2, batch_size, self.params.encoder_rnn_size)
         final_state = final_state[-1]
         h_1, h_2 = final_state[0], final_state[1]
+
         final_state = t.cat([h_1, h_2], 1)
         final_state = self.hw2(final_state)
 
-        result = self.fc1(final_state)
-        result = self.hw3(result)
-        result = self.to_hidden(result)
-
-        [result_chanels, h, w] = self.params.hidden_view
-        return result.view(-1, result_chanels, h, w)
+        return final_state
