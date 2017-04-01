@@ -73,7 +73,7 @@ class HLVAE(nn.Module):
             std = [t.exp(0.5 * var) for var in logvar]
             z = [HLVAE.sample_z(mu[i], std[i], use_cuda).sigmoid() for i in range(batch_size)]
 
-            bce = t.cat([HLVAE.reconstruction_loss(z[i], target_images[i]) for i in range(batch_size)]).mean()
+            mce = t.cat([HLVAE.mce(z[i], target_images[i]) for i in range(batch_size)]).mean()
 
             return
 
@@ -90,7 +90,7 @@ class HLVAE(nn.Module):
         return z * std + mu
 
     @staticmethod
-    def reconstruction_loss(z, image_path):
+    def mce(z, image_path):
         """
         :param z: tensor with shape of [1, 3, height, width]
         :return: MSE between latent representation z and target representation
