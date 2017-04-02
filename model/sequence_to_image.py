@@ -33,10 +33,10 @@ class SequenceToImage(nn.Module):
                 target_image_sizes=None,
                 z=None):
         """
+        :param drop_prob: probability of an element of decoder input to be zeroed in sense of dropout
         :param encoder_word_input: An tensor with shape of [batch_size, seq_len] of Long type
         :param encoder_character_input: An tensor with shape of [batch_size, seq_len, max_word_len] of Long type
         :param target_image_sizes: sizes of target images
-        :param drop_prob: probability of an element of decoder input to be zeroed in sense of dropout
         :param z: tensor containing context if sampling is performing
         :return: An array of result images with shape of [3, height_i, width_i]
                  kld loss estimation 

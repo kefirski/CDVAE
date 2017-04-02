@@ -1,17 +1,17 @@
 import math
-from scipy import misc
 import torch as t
 import torch.nn as nn
 import torch.nn.init as init
+import torch.nn.functional as F
+from scipy import misc
 from torch.nn import Parameter
 from torch.autograd import Variable
-import torch.nn.functional as F
 from torch_modules.other.expand_with_zeros import expand_with_zeroes
 
 
-class Disriminator(nn.Module):
+class Disсriminator(nn.Module):
     def __init__(self, params):
-        super(Disriminator, self).__init__()
+        super(Disсriminator, self).__init__()
 
         self.params = params
 

@@ -3,9 +3,9 @@ import torch.nn as nn
 from model.sequence_to_image import SequenceToImage
 
 
-class HLVAE(nn.Module):
+class CDVAE(nn.Module):
     def __init__(self, params):
-        super(HLVAE, self).__init__()
+        super(CDVAE, self).__init__()
 
         self.params = params
 
