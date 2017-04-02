@@ -18,15 +18,15 @@ class Parameters:
         self.encoder_rnn_size = 200
         self.encoder_num_layers = 2
 
-        self.latent_variable_size = 150
+        self.latent_variable_size = 250
 
         self.hidden_size = 6400
         self.hidden_view = [100, 8, 8]
 
         # (input_channels, output_channels, kernel_size, (out_h, out_w))
-        self.deconv_kernels = [(100, 95, 5, (16, 16)),
-                               (95, 92, 5, (32, 32)),
-                               (92, 20, 5, (64, 64)),
+        self.deconv_kernels = [(100, 80, 5, (16, 16)),
+                               (80, 40, 5, (32, 32)),
+                               (40, 20, 5, (64, 64)),
                                (20, 15, 5, (128, 128)),
                                (15, 6, 5, (256, 256))]
         self.last_kernel = 6, 3, 5, (512, 512)
@@ -35,5 +35,6 @@ class Parameters:
         # (out_chanels, input_chanels, kernel_size)
         self.discr_kernels = [(5, 3, 5),
                               (8, 5, 5),
-                              (15, 8, 5),
-                              (20, 15, 5)]
+                              (13, 8, 5),
+                              (15, 13, 5),
+                              (16, 15, 5)]

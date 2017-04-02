@@ -1,18 +1,17 @@
 import torch as t
 import torch.nn as nn
-import numpy as np
 from scipy import misc
-import torch.nn.functional as F
-from .text_encoder import TextEncoder
-from utils.functions import *
 from torch.autograd import Variable
+
+from model.decoders.image_decoder import ImageDecoder
+from model.encoders.text_encoder import TextEncoder
 from torch_modules.other.embedding_lockup import Embedding
-from torch_modules.conv_layers.sequential_deconv import SeqDeconv
+from utils.functions import *
 
 
-class SeqToImage(nn.Module):
+class SequenceToImage(nn.Module):
     def __init__(self, params):
-        super(SeqToImage, self).__init__()
+        super(SequenceToImage, self).__init__()
 
         self.params = params
 
@@ -23,45 +22,34 @@ class SeqToImage(nn.Module):
         self.context_to_mu = nn.Linear(self.params.encoder_rnn_size * 2, self.params.latent_variable_size)
         self.context_to_logvar = nn.Linear(self.params.encoder_rnn_size * 2, self.params.latent_variable_size)
 
-        self.hidden_to_image = nn.Linear(self.params.latent_variable_size, self.params.hidden_size)
+        self.hidden_to_image_size = nn.Linear(self.params.latent_variable_size, self.params.hidden_size)
 
-        self.unroll_image = SeqDeconv(self.params)
+        self.unroll_image = ImageDecoder(self.params)
 
         [self.input_channels, self.h, self.w] = self.params.hidden_view
 
     def forward(self, drop_prob=0,
                 encoder_word_input=None, encoder_character_input=None,
-                target_images=None, target_image_sizes=None,
-                real_images=None,
+                target_image_sizes=None,
                 decoder_word_input=None,
                 z=None):
         """
         :param encoder_word_input: An tensor with shape of [batch_size, seq_len] of Long type
         :param encoder_character_input: An tensor with shape of [batch_size, seq_len, max_word_len] of Long type
-        :param target_images: target images path to estimate image reconstruction loss
         :param target_image_sizes: sizes of target images
-        :param real_images: real images to estimate adverstal loss
         :param decoder_word_input: An tensor with shape of [batch_size, max_seq_len + 1] of Long type
         :param drop_prob: probability of an element of decoder input to be zeroed in sense of dropout
         :param z: tensor containing context if sampling is performing
-        :return: unnormalized logits of sentence words distribution probabilities
-                    with shape of [batch_size, seq_len, word_vocab_size]
-                 bce between latent representation and target representation
-                 adverstal loss result
+        :return: An array of result images with shape of [3, height_i, width_i]
+                 kld loss estimation 
+                 mu and logvar
         """
 
         assert parameters_allocation_check(self), \
             'Invalid CUDA options. Parameters should be allocated in the same memory'
         use_cuda = self.embedding.word_embed.weight.is_cuda
 
-        is_train = fold(lambda acc, parameter: acc and parameter is not None,
-                        [encoder_word_input, encoder_character_input, target_images, target_image_sizes, decoder_word_input],
-                        True) and z is None
-        is_sampling = fold(lambda acc, parameter: acc and parameter is None,
-                           [encoder_word_input, encoder_character_input, target_images, target_image_sizes,
-                            decoder_word_input],
-                           True) and z is not None
-        assert is_train or is_sampling, 'Invalid input options'
+        is_train = z is None
 
         ''' Get context from encoder and sample z ~ N(mu, std)
         '''
@@ -70,8 +58,6 @@ class SeqToImage(nn.Module):
             assert encoder_word_input.size()[0] == len(target_image_sizes), \
                 'while training each batch should be provided with image size to sample with'
 
-            [batch_size, _] = encoder_word_input.size()
-
             encoder_input = self.embedding(encoder_word_input, encoder_character_input)
             context = self.encoder(encoder_input)
 
@@ -79,16 +65,22 @@ class SeqToImage(nn.Module):
             logvar = self.context_to_logvar(context)
             std = t.exp(0.5 * logvar)
 
-            z = SeqToImage.sample_z(mu, std, use_cuda)
+            kld = (-0.5 * t.sum(logvar - t.pow(mu, 2) - t.exp(logvar) + 1, 1)).mean().squeeze()
 
-            z = self.hidden_to_image(z)
-            z = [z[i].unsqueeze(0) for i in range(batch_size)]
+            z = SequenceToImage.sample_z(mu, std, use_cuda)
 
-            z = [self.unroll_image(z[i].view(-1, self.input_channels, self.h, self.w), target_image_sizes[i])
-                 for i in range(batch_size)]
+        else:
+            kld = None
+            mu = None
+            logvar = None
 
-            mse = t.cat([SeqToImage.mse(z[i], target_images[i]) for i in range(batch_size)]).mean()
+        z = self.hidden_to_image_size(z)
+        z = [var.view(self.input_channels, self.h, self.w) for var in z]
 
+        z = [self.unroll_image(var, target_image_sizes[i]).sigmoid()
+             for i, var in enumerate(z)]
+
+        return z, kld, (mu, logvar)
 
     @staticmethod
     def sample_z(mu, std, use_cuda):
@@ -103,19 +95,24 @@ class SeqToImage(nn.Module):
         return z * std + mu
 
     @staticmethod
-    def mse(z, image_path):
+    def mse(z, image_paths):
         """
-        :param z: tensor with shape of [1, 3, height, width]
+        :param z: An array of tensos with shape of [3, height, width]
         :return: MSE between latent representation z and target representation
         """
 
-        image = misc.imread(image_path)/255
-        image = (Variable(t.from_numpy(image))).float().transpose(2, 0).contiguous()
-        if z.is_cuda:
-            image = image.cuda()
+        mse = []
 
-        z = z.squeeze(0).contiguous().view(-1)
-        image = image.view(-1)
+        for i, var in enumerate(z):
+            image = misc.imread(image_paths[i])/255
+            image = (Variable(t.from_numpy(image))).float().transpose(2, 0).contiguous()
+            if var.is_cuda:
+                image = image.cuda()
 
-        return t.pow(z - image, 2).mean()
+            var = var.contiguous().view(-1)
+            image = image.view(-1)
+
+            mse += [t.pow(var - image, 2).mean()]
+
+        return t.cat(mse)
 

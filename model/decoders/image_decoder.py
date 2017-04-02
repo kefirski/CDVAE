@@ -4,12 +4,12 @@ import torch.nn as nn
 import torch.nn.init as init
 from torch.nn import Parameter
 import torch.nn.functional as F
-from ..other.corner_unpool import Corner2dMaxUnpool
+from torch_modules.other.corner_unpool import Corner2dMaxUnpool
 
 
-class SeqDeconv(nn.Module):
+class ImageDecoder(nn.Module):
     def __init__(self, params):
-        super(SeqDeconv, self).__init__()
+        super(ImageDecoder, self).__init__()
 
         self.params = params
 
@@ -33,13 +33,15 @@ class SeqDeconv(nn.Module):
 
     def forward(self, x, out_size):
         """
-        :param x: input tensor with shape of [batch_size, input_channels, in_height, in_width] 
-        :param out_size: array of [out_height, out_width]
+        :param x: input tensor with shape of [input_channels, in_height, in_width] 
+        :param out_size: array = [out_height, out_width]
+        :return An tensor with shape [3, out_height, out_width]
         """
 
         input_size = x.size()
-        assert len(input_size) == 4, 'Invalid input rang. Must be equal to 4, but {} found'.format(len(input_size))
-        [batch_size, _, _, _] = input_size
+        assert len(input_size) == 3, 'Invalid input rang. Must be equal to 3, but {} found'.format(len(input_size))
+        x = x.unsqueeze(0)
+
         assert len(out_size) == 2, \
             'Invalid out_size format. len(out_size) must be equal to 2, but {} found'.format(len(out_size))
         [out_height, out_width] = out_size
@@ -49,7 +51,7 @@ class SeqDeconv(nn.Module):
             _, out_chan, _, (out_h, out_w) = self.params.deconv_kernels[i]
 
             x = self.max_unpool(x)
-            x = F.relu(self.deconvolutions[i](x, output_size=[batch_size, out_chan, out_h, out_w]))
+            x = F.relu(self.deconvolutions[i](x, output_size=[1, out_chan, out_h, out_w]))
 
         # final deconv to emit output with given size
         x = self.max_unpool(x)
@@ -59,7 +61,7 @@ class SeqDeconv(nn.Module):
         x = x if h_even else x[:, :, :-1, :]
         x = x if w_even else x[:, :, :, :-1]
 
-        return x
+        return x.squeeze(0)
 
     def padding(self, size):
         diff = 500 - size
