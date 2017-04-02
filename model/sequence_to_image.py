@@ -31,13 +31,11 @@ class SequenceToImage(nn.Module):
     def forward(self, drop_prob=0,
                 encoder_word_input=None, encoder_character_input=None,
                 target_image_sizes=None,
-                decoder_word_input=None,
                 z=None):
         """
         :param encoder_word_input: An tensor with shape of [batch_size, seq_len] of Long type
         :param encoder_character_input: An tensor with shape of [batch_size, seq_len, max_word_len] of Long type
         :param target_image_sizes: sizes of target images
-        :param decoder_word_input: An tensor with shape of [batch_size, max_seq_len + 1] of Long type
         :param drop_prob: probability of an element of decoder input to be zeroed in sense of dropout
         :param z: tensor containing context if sampling is performing
         :return: An array of result images with shape of [3, height_i, width_i]
@@ -74,9 +72,8 @@ class SequenceToImage(nn.Module):
             mu = None
             logvar = None
 
-        z = self.hidden_to_image_size(z)
-        z = [var.view(self.input_channels, self.h, self.w) for var in z]
-
+        z = F.dropout(self.hidden_to_image_size(z), drop_prob)
+        z = z.view(-1, self.input_channels, self.h, self.w)
         z = [self.unroll_image(var, target_image_sizes[i]).sigmoid()
              for i, var in enumerate(z)]
 
@@ -114,5 +111,5 @@ class SequenceToImage(nn.Module):
 
             mse += [t.pow(var - image, 2).mean()]
 
-        return t.cat(mse)
+        return t.cat(mse).mean()
 
