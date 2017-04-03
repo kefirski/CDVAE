@@ -23,22 +23,22 @@ class Parameters:
 
         self.latent_variable_size = 250
 
-        self.hidden_size = 6400
-        self.hidden_view = [100, 8, 8]
-
         # (out_chanels, input_chanels, kernel_size)
         self.encoder_kernels = [(5, 3, 5),
                                 (10, 5, 5),
                                 (14, 10, 5),
                                 (17, 14, 5),
-                                (19, 17, 5)
+                                (19, 17, 5),
                                 (20, 19, 5)]
         self.encoder_conv_num_layers = len(self.encoder_kernels)
         self.image_encoder_out_size = (int(512 / (2 ** (self.encoder_conv_num_layers + 1))) ** 2) * \
                                       self.encoder_kernels[-1][0]
 
+        self.hidden_size = 1600
+        self.hidden_view = [100, 4, 4]
         # (input_channels, output_channels, kernel_size, (out_h, out_w))
-        self.deconv_kernels = [(100, 80, 5, (16, 16)),
+        self.deconv_kernels = [(100, 90, 5, (8, 8)),
+                               (90, 80, 5, (16, 16)),
                                (80, 40, 5, (32, 32)),
                                (40, 20, 5, (64, 64)),
                                (20, 15, 5, (128, 128)),

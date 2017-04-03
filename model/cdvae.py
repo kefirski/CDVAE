@@ -1,5 +1,5 @@
 import torch.nn as nn
-
+from selfModules.embedding import Embedding
 from model.sequence_to_image import SequenceToImage
 
 
@@ -9,6 +9,7 @@ class CDVAE(nn.Module):
 
         self.params = params
 
+        embedding = Embedding(self.params, '')
         self.seq_to_image = SequenceToImage(params)
 
     def forward(self, drop_prob=0,

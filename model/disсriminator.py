@@ -22,9 +22,9 @@ class Disсriminator(nn.Module):
         for weight in self.conv_weights:
             init.xavier_uniform(weight, gain=math.sqrt(2.0))
 
-        self.out_dim = (int(512 / (2 ** (len(self.params.discr_kernels) + 1))) ** 2) * self.params.discr_kernels[-1][0]
+        self.out_size = (int(512 / (2 ** (len(self.params.discr_kernels) + 1))) ** 2) * self.params.discr_kernels[-1][0]
 
-        self.fc = nn.Linear(self.out_dim, 1)
+        self.fc = nn.Linear(self.out_size, 1)
 
     def forward(self, generated_data, true_data):
         """
@@ -41,8 +41,8 @@ class Disсriminator(nn.Module):
 
         data = generated_data + true_data
         del true_data
-        data = [expand_with_zeroes(var, [512, 512]) for var in data]
-        data = t.cat([self.unroll_convolutions(var) for var in data], 0)
+        data = t.cat([expand_with_zeroes(var, [512, 512]).unsqueeze(0) for var in data], 0)
+        data = self.unroll_convolutions(data)
 
         result = self.fc(data).squeeze(1).sigmoid()
         del data
@@ -56,10 +56,10 @@ class Disсriminator(nn.Module):
         return discriminator_loss, generator_loss
 
     def unroll_convolutions(self, input):
-        input = input.unsqueeze(0)
+        [batch_size, _, _, _] = input.size()
 
         for i in range(len(self.conv_weights)):
             input = F.relu(F.conv2d(input, self.conv_weights[i], self.conv_biases[i], padding=2))
             input = F.avg_pool2d(input, 2) if i < len(self.conv_weights) - 1 else F.avg_pool2d(input, 4)
 
-        return input.view(1, self.out_dim)
+        return input.view(batch_size, self.out_size)

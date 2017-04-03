@@ -2,10 +2,8 @@ import torch as t
 import torch.nn as nn
 from scipy import misc
 from torch.autograd import Variable
-
 from model.decoders.image_decoder import ImageDecoder
 from model.encoders.text_encoder import TextEncoder
-from torch_modules.other.embedding_lockup import Embedding
 from utils.functions import *
 
 
@@ -15,24 +13,22 @@ class SequenceToImage(nn.Module):
 
         self.params = params
 
-        self.embedding = Embedding(self.params, '')
-
-        self.encoder = TextEncoder(self.params)
+        self.text_encoder = TextEncoder(self.params)
 
         self.context_to_mu = nn.Linear(self.params.encoder_rnn_size * 2, self.params.latent_variable_size)
         self.context_to_logvar = nn.Linear(self.params.encoder_rnn_size * 2, self.params.latent_variable_size)
 
         self.hidden_to_image_size = nn.Linear(self.params.latent_variable_size, self.params.hidden_size)
-
-        self.unroll_image = ImageDecoder(self.params)
-
+        self.image_decoder = ImageDecoder(self.params)
         [self.input_channels, self.h, self.w] = self.params.hidden_view
 
-    def forward(self, drop_prob=0,
+    def forward(self, embedding=None,
+                drop_prob=0,
                 encoder_word_input=None, encoder_character_input=None,
                 target_image_sizes=None,
                 z=None):
         """
+        :param embedding: text embedding instance
         :param drop_prob: probability of an element of decoder input to be zeroed in sense of dropout
         :param encoder_word_input: An tensor with shape of [batch_size, seq_len] of Long type
         :param encoder_character_input: An tensor with shape of [batch_size, seq_len, max_word_len] of Long type
@@ -56,8 +52,8 @@ class SequenceToImage(nn.Module):
             assert encoder_word_input.size()[0] == len(target_image_sizes), \
                 'while training each batch should be provided with image size to sample with'
 
-            encoder_input = self.embedding(encoder_word_input, encoder_character_input)
-            context = self.encoder(encoder_input)
+            encoder_input = embedding(encoder_word_input, encoder_character_input)
+            context = self.text_encoder(encoder_input)
 
             mu = self.context_to_mu(context)
             logvar = self.context_to_logvar(context)
@@ -74,7 +70,7 @@ class SequenceToImage(nn.Module):
 
         z = F.dropout(self.hidden_to_image_size(z), drop_prob)
         z = z.view(-1, self.input_channels, self.h, self.w)
-        z = [self.unroll_image(var, target_image_sizes[i]).sigmoid()
+        z = [self.image_decoder(var, target_image_sizes[i]).sigmoid()
              for i, var in enumerate(z)]
 
         return z, kld, (mu, logvar)
