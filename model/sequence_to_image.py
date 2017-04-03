@@ -1,5 +1,6 @@
 import torch as t
 import torch.nn as nn
+import torch.nn.functional as F
 from scipy import misc
 from torch.autograd import Variable
 from model.decoders.image_decoder import ImageDecoder
@@ -41,7 +42,7 @@ class SequenceToImage(nn.Module):
 
         assert parameters_allocation_check(self), \
             'Invalid CUDA options. Parameters should be allocated in the same memory'
-        use_cuda = self.embedding.word_embed.weight.is_cuda
+        use_cuda = self.context_to_mu.weight.is_cuda
 
         is_train = z is None
 
@@ -61,8 +62,7 @@ class SequenceToImage(nn.Module):
 
             kld = (-0.5 * t.sum(logvar - t.pow(mu, 2) - t.exp(logvar) + 1, 1)).mean().squeeze()
 
-            z = SequenceToImage.sample_z(mu, std, use_cuda)
-
+            z = sample_z(mu, std, use_cuda)
         else:
             kld = None
             mu = None
@@ -75,17 +75,6 @@ class SequenceToImage(nn.Module):
 
         return z, kld, (mu, logvar)
 
-    @staticmethod
-    def sample_z(mu, std, use_cuda):
-        """
-        :return: differentiable z ~ N(mu, std)
-        """
-
-        z = Variable(t.rand(mu.size()))
-        if use_cuda:
-            z = z.cuda()
-
-        return z * std + mu
 
     @staticmethod
     def mse(z, image_paths):

@@ -10,10 +10,12 @@ from torch_modules.other.expand_with_zeros import expand_with_zeroes
 
 
 class Disсriminator(nn.Module):
-    def __init__(self, params):
+    def __init__(self, params, path_prefix):
         super(Disсriminator, self).__init__()
 
         self.params = params
+
+        self.path_prefix = path_prefix
 
         self.conv_weights = nn.ParameterList([Parameter(t.Tensor(out_c, in_c, kernel_size, kernel_size))
                                               for out_c, in_c, kernel_size in self.params.discr_kernels])
@@ -36,7 +38,7 @@ class Disсriminator(nn.Module):
         assert len(generated_data) == len(true_data), 'generated and true data should have the same length'
         batch_size = len(generated_data)
 
-        true_data = [misc.imread(path) / 255 for path in true_data]
+        true_data = [misc.imread(self.path_prefix + path) / 255 for path in true_data]
         true_data = [(Variable(t.from_numpy(image))).float().transpose(2, 0).contiguous() for image in true_data]
 
         data = generated_data + true_data
@@ -44,14 +46,14 @@ class Disсriminator(nn.Module):
         data = t.cat([expand_with_zeroes(var, [512, 512]).unsqueeze(0) for var in data], 0)
         data = self.unroll_convolutions(data)
 
-        result = self.fc(data).squeeze(1).sigmoid()
+        result = self.fc(data).squeeze(1)
         del data
 
-        generated_result, real_result = result[:batch_size], result[batch_size:]
+        D_fake, D_real = result[:batch_size], result[batch_size:]
         del result
 
-        discriminator_loss = (real_result + 1e-16).log().neg() + (1 - generated_result + 1e-16).log().neg()
-        generator_loss = (generated_result + 1e-16).log().neg()
+        discriminator_loss = -D_real.mean() + D_fake.mean()
+        generator_loss = -D_fake.mean()
 
         return discriminator_loss, generator_loss
 

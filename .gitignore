@@ -12,6 +12,7 @@ experimentation.py
 images/
 word_embeddings.npy
 preprocessed_data/
+test.py
 
 # Distribution / packaging
 .Python

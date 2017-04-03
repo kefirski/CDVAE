@@ -11,10 +11,11 @@ from torch_modules.other.expand_with_zeros import expand_with_zeroes
 
 
 class ImageEncoder(nn.Module):
-    def __init__(self, params):
+    def __init__(self, params, path_prefix):
         super(ImageEncoder, self).__init__()
 
         self.params = params
+        self.path_prefix = path_prefix
 
         self.conv_weights = nn.ParameterList([Parameter(t.Tensor(out_c, in_c, kernel_size, kernel_size))
                                               for out_c, in_c, kernel_size in self.params.encoder_kernels])
@@ -33,7 +34,7 @@ class ImageEncoder(nn.Module):
         :return: An tensor with shape of [len(images), out_size]
         """
 
-        images = [misc.imread(path) / 255 for path in images]
+        images = [misc.imread(self.path_prefix + path) / 255 for path in images]
         images = [(Variable(t.from_numpy(image))).float().transpose(2, 0).contiguous() for image in images]
         images = t.cat([expand_with_zeroes(var, [512, 512]).unsqueeze(0) for var in images], 0)
 

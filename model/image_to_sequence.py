@@ -8,14 +8,71 @@ from utils.functions import *
 
 
 class ImageToSequence(nn.Module):
-    def __init__(self, params):
+    def __init__(self, params, path_prefix):
         super(ImageToSequence, self).__init__()
 
         self.params = params
 
-        self.image_encoder = ImageEncoder(self.params)
+        self.image_encoder = ImageEncoder(self.params, path_prefix)
         self.text_decoder = TextDecoder(self.params)
 
+        self.context_to_mu = nn.Linear(self.params.image_encoder_out_size, self.params.latent_variable_size)
+        self.context_to_logvar = nn.Linear(self.params.image_encoder_out_size, self.params.latent_variable_size)
 
-    def forward(self):
-        pass
+    def forward(self, embedding,
+                drop_prob=0,
+                images=None,
+                decoder_input=None, initial_state=None,
+                z=None):
+        """
+        :param embedding: text embedding instance
+        :param drop_prob: probability of an element of decoder input to be zeroed in sense of dropout
+        :param images: array of batch_size length of images paths
+        :param decoder_input: An tensor with shape of [batch_size, max_seq_len + 1] of Long type
+        :param initial_state: initial state of decoder rnn in order to perform sampling
+
+        :param z: tensor containing context if sampling is performing
+        
+        :return: unnormalized logits of sentence words distribution probabilities
+                    with shape of [batch_size, seq_len, word_vocab_size]
+                 decoder final state
+                 kld loss estimation
+                 mu and logvar
+        """
+
+        assert parameters_allocation_check(self), \
+            'Invalid CUDA options. Parameters should be allocated in the same memory'
+        use_cuda = self.context_to_mu.weight.is_cuda
+
+        is_train = z is None
+
+        ''' Get context from encoder and sample z ~ N(mu, std)
+        '''
+
+        if is_train:
+            assert decoder_input.size()[0] == len(images), \
+                'while training each image should be provided with sequence to sample with'
+
+            context = self.image_encoder(images)
+
+            mu = self.context_to_mu(context)
+            logvar = self.context_to_logvar(context)
+            std = t.exp(0.5 * logvar)
+
+            kld = (-0.5 * t.sum(logvar - t.pow(mu, 2) - t.exp(logvar) + 1, 1)).mean().squeeze()
+
+            z = sample_z(mu, std, use_cuda)
+        else:
+            kld = None
+            mu = None
+            logvar = None
+
+        decoder_input = embedding.word_embed(decoder_input)
+        out, final_state = self.text_decoder(decoder_input, z, drop_prob, initial_state)
+
+        return out, final_state, kld, (mu, logvar)
+
+
+
+
+
