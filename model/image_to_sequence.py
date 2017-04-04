@@ -19,15 +19,15 @@ class ImageToSequence(nn.Module):
         self.context_to_mu = nn.Linear(self.params.image_encoder_out_size, self.params.latent_variable_size)
         self.context_to_logvar = nn.Linear(self.params.image_encoder_out_size, self.params.latent_variable_size)
 
-    def forward(self, embedding,
+    def forward(self, embeddings,
                 drop_prob=0,
-                images=None,
+                encoder_image_input=None,
                 decoder_input=None, initial_state=None,
                 z=None):
         """
-        :param embedding: text embedding instance
+        :param embeddings: text embedding instance
         :param drop_prob: probability of an element of decoder input to be zeroed in sense of dropout
-        :param images: array of batch_size length of images paths
+        :param encoder_image_input: array of batch_size length of images paths
         :param decoder_input: An tensor with shape of [batch_size, max_seq_len + 1] of Long type
         :param initial_state: initial state of decoder rnn in order to perform sampling
 
@@ -50,10 +50,10 @@ class ImageToSequence(nn.Module):
         '''
 
         if is_train:
-            assert decoder_input.size()[0] == len(images), \
+            assert decoder_input.size()[0] == len(encoder_image_input), \
                 'while training each image should be provided with sequence to sample with'
 
-            context = self.image_encoder(images)
+            context = self.image_encoder(encoder_image_input)
 
             mu = self.context_to_mu(context)
             logvar = self.context_to_logvar(context)
@@ -67,7 +67,7 @@ class ImageToSequence(nn.Module):
             mu = None
             logvar = None
 
-        decoder_input = embedding.word_embed(decoder_input)
+        decoder_input = embeddings.word_embed(decoder_input)
         out, final_state = self.text_decoder(decoder_input, z, drop_prob, initial_state)
 
         return out, final_state, kld, (mu, logvar)

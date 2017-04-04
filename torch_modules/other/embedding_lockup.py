@@ -6,9 +6,9 @@ from torch.nn import Parameter
 from ..conv_layers.tdnn import TDNN
 
 
-class Embedding(nn.Module):
+class EmbeddingLockup(nn.Module):
     def __init__(self, params, path='../../../'):
-        super(Embedding, self).__init__()
+        super(EmbeddingLockup, self).__init__()
 
         self.params = params
 

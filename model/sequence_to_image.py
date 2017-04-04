@@ -23,17 +23,17 @@ class SequenceToImage(nn.Module):
         self.image_decoder = ImageDecoder(self.params)
         [self.input_channels, self.h, self.w] = self.params.hidden_view
 
-    def forward(self, embedding=None,
+    def forward(self, embeddings=None,
                 drop_prob=0,
                 encoder_word_input=None, encoder_character_input=None,
-                target_image_sizes=None,
+                target_sizes=None,
                 z=None):
         """
-        :param embedding: text embedding instance
+        :param embeddings: text embedding instance
         :param drop_prob: probability of an element of decoder input to be zeroed in sense of dropout
         :param encoder_word_input: An tensor with shape of [batch_size, seq_len] of Long type
         :param encoder_character_input: An tensor with shape of [batch_size, seq_len, max_word_len] of Long type
-        :param target_image_sizes: sizes of target images
+        :param target_sizes: sizes of target images
         :param z: tensor containing context if sampling is performing
         :return: An array of result images with shape of [3, height_i, width_i]
                  kld loss estimation 
@@ -50,10 +50,10 @@ class SequenceToImage(nn.Module):
         '''
 
         if is_train:
-            assert encoder_word_input.size()[0] == len(target_image_sizes), \
+            assert encoder_word_input.size()[0] == len(target_sizes), \
                 'while training each batch should be provided with image size to sample with'
 
-            encoder_input = embedding(encoder_word_input, encoder_character_input)
+            encoder_input = embeddings(encoder_word_input, encoder_character_input)
             context = self.text_encoder(encoder_input)
 
             mu = self.context_to_mu(context)
@@ -70,7 +70,7 @@ class SequenceToImage(nn.Module):
 
         z = F.dropout(self.hidden_to_image_size(z), drop_prob)
         z = z.view(-1, self.input_channels, self.h, self.w)
-        z = [self.image_decoder(var, target_image_sizes[i]).sigmoid()
+        z = [self.image_decoder(var, target_sizes[i]).sigmoid()
              for i, var in enumerate(z)]
 
         return z, kld, (mu, logvar)

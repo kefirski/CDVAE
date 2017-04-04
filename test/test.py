@@ -5,11 +5,12 @@ from model.sequence_to_image import SequenceToImage
 from model.image_to_sequence import ImageToSequence
 from utils.batchloader import BatchLoader
 from utils.parameters import Parameters
-from torch_modules.other.embedding_lockup import Embedding
+from torch_modules.other.embedding_lockup import EmbeddingLockup
 from model.encoders.image_encoder import ImageEncoder
 from model.encoders.text_encoder import TextEncoder
 from model.disсriminator import Disсriminator
 from torch_modules.other.expand_with_zeros import expand_with_zeroes
+from model.cdvae import CDVAE
 from utils.functions import *
 
 if __name__ == '__main__':
@@ -23,7 +24,7 @@ if __name__ == '__main__':
 
     print()
 
-    embedding = Embedding(parameters, '../')
+    embedding = EmbeddingLockup(parameters, '../')
     print('embeddings is initialized 👍\n')
 
     word_level_encoder_input, character_level_encoder_input, target_images, \
@@ -60,7 +61,7 @@ if __name__ == '__main__':
     sequence_to_image = SequenceToImage(parameters)
     print('sequence to image is initializer 👍\n')
     z = Variable(t.rand([batch_size, parameters.latent_variable_size]))
-    out, kld, (mu, logvar) = sequence_to_image(embedding, target_image_sizes=target_images_sizes, z=z)
+    out, kld, (mu, logvar) = sequence_to_image(embedding, target_sizes=target_images_sizes, z=z)
     assert all([var is None for var in [kld, mu, logvar]])
     assert all([predicat
                 for i, var in enumerate(out) for predicat in list(var.size()[1:] == target_images_sizes[i])]), \
@@ -68,7 +69,7 @@ if __name__ == '__main__':
     out, kld, (mu, logvar) = sequence_to_image(embedding,
                                                encoder_word_input=word_level_encoder_input,
                                                encoder_character_input=character_level_encoder_input,
-                                               target_image_sizes=target_images_sizes,
+                                               target_sizes=target_images_sizes,
                                                z=None)
     assert len(out) == mu.size()[0] == logvar.size()[0] == batch_size, 'invalid out size ⛔'
     assert all([predicat
@@ -80,7 +81,7 @@ if __name__ == '__main__':
     image_to_sequence = ImageToSequence(parameters, '../')
     print('image to sequence is initialized 👍\n')
     out, final_state, kld, (mu_2, logvar_2) = image_to_sequence(embedding, 0, target_images, decoder_text_input)
-    assert all([len(size) == 2 for size in [mu_2.size(), mu.size(), logvar_2.size(), logvar.size()]]),\
+    assert all([len(size) == 2 for size in [mu_2.size(), mu.size(), logvar_2.size(), logvar.size()]]), \
         'invalid mu and logvar rang ⛔\n'
     out, final_state, kld, (mu_2, logvar_2) = image_to_sequence(embedding, decoder_input=decoder_text_input, z=z)
     assert len(out.size()) == 3, 'invalid out size ⛔\n'
@@ -89,3 +90,9 @@ if __name__ == '__main__':
         'ivalid decoder out size ⛔\n'
     print('image to sequence tests have passed 👍\n')
 
+    cdvae = CDVAE(parameters, '../')
+    seq_to_image_result, image_to_seq_result = cdvae(0, word_level_encoder_input, character_level_encoder_input,
+                                                     target_images, target_images_sizes, decoder_text_input)
+    assert len(seq_to_image_result) == 3 and len(image_to_seq_result) == 4
+    assert len(seq_to_image_result[2]) == 2 and len(image_to_seq_result[3]) == 2
+    print('CDVAE tests passed 👍\n')

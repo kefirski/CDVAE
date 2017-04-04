@@ -10,7 +10,7 @@ class NEG_loss(nn.Module):
     def __init__(self, num_classes, embed_size):
         """
         :param num_classes: An int. The number of possible classes.
-        :param embed_size: An int. Embedding size
+        :param embed_size: An int. EmbeddingLockup size
         """
 
         super(NEG_loss, self).__init__()
