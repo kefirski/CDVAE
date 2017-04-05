@@ -17,16 +17,42 @@ class ImageEncoder(nn.Module):
         self.params = params
         self.path_prefix = path_prefix
 
-        self.conv_weights = nn.ParameterList([Parameter(t.Tensor(out_c, in_c, kernel_size, kernel_size))
-                                              for out_c, in_c, kernel_size in self.params.encoder_kernels])
-        self.conv_biases = nn.ParameterList([Parameter(t.Tensor(out_c)) for out_c, _, _ in self.params.encoder_kernels])
+        self.main_conv = nn.Sequential(
+            # [3, 512, 512] -> [8, 256, 256]
+            nn.Conv2d(3, 8, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(8),
+            nn.ReLU(True),
 
-        for weight in self.conv_weights:
-            init.xavier_uniform(weight, gain=math.sqrt(2.0))
+            # [8, 256, 256] -> [16, 128, 128]
+            nn.Conv2d(8, 16, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(16),
+            nn.ReLU(True),
 
-        self.out_size = self.params.image_encoder_out_size
+            # [16, 128, 128] -> [32, 64, 64]
+            nn.Conv2d(16, 32, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(32),
+            nn.ReLU(True),
 
-        self.hw = Highway(self.out_size, 3, F.relu)
+            # [32, 64, 64] -> [64, 32, 32]
+            nn.Conv2d(32, 64, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(64),
+            nn.ReLU(True),
+
+            # [64, 32, 32] -> [128, 16, 16]
+            nn.Conv2d(64, 128, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(128),
+            nn.ReLU(True),
+
+            # [128, 16, 16] -> [256, 4, 4]
+            nn.Conv2d(128, 256, 4, 4, 1, bias=False),
+            nn.BatchNorm2d(256),
+            nn.ReLU(True),
+
+            # [256, 4, 4] -> [512, 1, 1]
+            nn.Conv2d(256, 512, 4, 4, 1, bias=False)
+        )
+
+        self.hw = Highway(512, 3, F.relu)
 
     def forward(self, images):
         """
@@ -34,19 +60,13 @@ class ImageEncoder(nn.Module):
         :return: An tensor with shape of [len(images), out_size]
         """
 
+        batch_size = len(images)
+
         images = [misc.imread(self.path_prefix + path) / 255 for path in images]
         images = [(Variable(t.from_numpy(image))).float().transpose(2, 0).contiguous() for image in images]
         images = t.cat([expand_with_zeroes(var, [512, 512]).unsqueeze(0) for var in images], 0)
 
-        images = self.unroll_convolutions(images)
+        images = self.main_conv(images).view(batch_size, 512)
 
         return self.hw(images)
 
-    def unroll_convolutions(self, input):
-        [batch_size, _, _, _] = input.size()
-
-        for i in range(self.params.encoder_conv_num_layers):
-            input = F.relu(F.conv2d(input, self.conv_weights[i], self.conv_biases[i], padding=2))
-            input = F.avg_pool2d(input, 2) if i < self.params.encoder_conv_num_layers - 1 else F.avg_pool2d(input, 4)
-
-        return input.view(batch_size, self.out_size)

@@ -16,8 +16,8 @@ class ImageToSequence(nn.Module):
         self.image_encoder = ImageEncoder(self.params, path_prefix)
         self.text_decoder = TextDecoder(self.params)
 
-        self.context_to_mu = nn.Linear(self.params.image_encoder_out_size, self.params.latent_variable_size)
-        self.context_to_logvar = nn.Linear(self.params.image_encoder_out_size, self.params.latent_variable_size)
+        self.context_to_mu = nn.Linear(512, self.params.latent_variable_size)
+        self.context_to_logvar = nn.Linear(512, self.params.latent_variable_size)
 
     def forward(self, embeddings,
                 drop_prob=0,

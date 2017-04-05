@@ -76,7 +76,6 @@ class ImageDecoder(nn.Module):
         (h_padding, h_even), (w_padding, w_even) = self.padding(out_height), self.padding(out_width)
 
         x = self.main_deconv(x)
-        print(x.size())
         x = x[:, :, h_padding - 2:512 - h_padding + 2, w_padding - 2:512 - w_padding + 2]
 
         # final deconv to emit output with given size
