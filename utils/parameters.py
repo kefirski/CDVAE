@@ -34,9 +34,3 @@ class Parameters:
         self.image_encoder_out_size = (int(512 / (2 ** (self.encoder_conv_num_layers + 1))) ** 2) * \
                                       self.encoder_kernels[-1][0]
 
-        # (out_chanels, input_chanels, kernel_size)
-        self.discr_kernels = [(5, 3, 5),
-                              (8, 5, 5),
-                              (13, 8, 5),
-                              (15, 13, 5),
-                              (16, 15, 5)]

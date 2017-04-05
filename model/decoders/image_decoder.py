@@ -49,14 +49,9 @@ class ImageDecoder(nn.Module):
             nn.BatchNorm2d(16),
             nn.ReLU(True),
 
-            # [16, 256, 256] -> [8, 512, 512]
-            nn.ConvTranspose2d(16, 8, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(8),
-            nn.ReLU()
+            # [16, 256, 256] -> [3, 512, 512]
+            nn.ConvTranspose2d(16, 3, 4, 2, 1, bias=False)
         )
-
-        self.last_kernel = Parameter(t.Tensor(8, 3, 5, 5))
-        init.xavier_uniform(self.last_kernel, gain=math.sqrt(2.0))
 
         '''
             out of last deconv is [512, 512] image. 
@@ -81,9 +76,11 @@ class ImageDecoder(nn.Module):
         (h_padding, h_even), (w_padding, w_even) = self.padding(out_height), self.padding(out_width)
 
         x = self.main_deconv(x)
+        print(x.size())
+        x = x[:, :, h_padding - 2:512 - h_padding + 2, w_padding - 2:512 - w_padding + 2]
 
         # final deconv to emit output with given size
-        x = F.conv_transpose2d(x, self.last_kernel, padding=(h_padding, w_padding))
+        # x = F.conv_transpose2d(x, self.last_kernel, padding=(h_padding, w_padding))
 
         # cropp image if size is odd
         x = x if h_even else x[:, :, :-1, :]

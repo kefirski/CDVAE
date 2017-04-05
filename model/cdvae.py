@@ -69,7 +69,7 @@ class CDVAE(nn.Module):
         def train(batch_size, use_cuda, drop_prob):
 
             word_level_encoder_input, character_level_encoder_input, target_images, \
-            real_images, target_images_sizes, decoder_text_input, decoder_text_target = \
+                real_images, target_images_sizes, decoder_text_input, decoder_text_target = \
                 batch_loader.next_batch(batch_size, 'train')
 
             [word_level_encoder_input, character_level_encoder_input, decoder_text_input, decoder_text_target] = \
