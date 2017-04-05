@@ -31,14 +31,6 @@ if __name__ == '__main__':
     real_images, target_images_sizes, decoder_text_input, decoder_text_target = \
         batch_loader.next_batch(batch_size, 'train')
 
-    assert len(real_images) == len(target_images) == \
-           word_level_encoder_input.shape[0] == character_level_encoder_input.shape[0] == \
-           decoder_text_input.shape[0] == decoder_text_target.shape[0], 'invalid batch size ⛔'
-    print('batch size is valid 👍\n')
-
-    [word_level_encoder_input, character_level_encoder_input, decoder_text_input, decoder_text_target] = \
-        [Variable(t.from_numpy(var))
-         for var in [word_level_encoder_input, character_level_encoder_input, decoder_text_input, decoder_text_target]]
 
     discriminator = Disсriminator(parameters, '../')
     print('discriminator is initialized 👍\n')
@@ -59,13 +51,15 @@ if __name__ == '__main__':
     del image_encoder
 
     sequence_to_image = SequenceToImage(parameters)
-    print('sequence to image is initializer 👍\n')
+    print('sequence to image is initialized 👍\n')
     z = Variable(t.rand([batch_size, parameters.latent_variable_size]))
     out, kld, (mu, logvar) = sequence_to_image(embedding, target_sizes=target_images_sizes, z=z)
+
     assert all([var is None for var in [kld, mu, logvar]])
     assert all([predicat
                 for i, var in enumerate(out) for predicat in list(var.size()[1:] == target_images_sizes[i])]), \
         'invalid out size of images ⛔'
+
     out, kld, (mu, logvar) = sequence_to_image(embedding,
                                                encoder_word_input=word_level_encoder_input,
                                                encoder_character_input=character_level_encoder_input,

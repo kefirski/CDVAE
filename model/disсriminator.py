@@ -17,16 +17,39 @@ class Disсriminator(nn.Module):
 
         self.path_prefix = path_prefix
 
-        self.conv_weights = nn.ParameterList([Parameter(t.Tensor(out_c, in_c, kernel_size, kernel_size))
-                                              for out_c, in_c, kernel_size in self.params.discr_kernels])
-        self.conv_biases = nn.ParameterList([Parameter(t.Tensor(out_c)) for out_c, _, _ in self.params.discr_kernels])
+        self.main_conv = nn.Sequential(
+            # [3, 512, 512] -> [8, 256, 256]
+            nn.Conv2d(3, 8, 4, 2, 1, bias=False),
+            nn.LeakyReLU(0.2, inplace=True),
 
-        for weight in self.conv_weights:
-            init.xavier_uniform(weight, gain=math.sqrt(2.0))
+            # [8, 256, 256] -> [16, 128, 128]
+            nn.Conv2d(8, 16, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(16),
+            nn.LeakyReLU(0.2, inplace=True),
 
-        self.out_size = (int(512 / (2 ** (len(self.params.discr_kernels) + 1))) ** 2) * self.params.discr_kernels[-1][0]
+            # [16, 128, 128] -> [32, 64, 64]
+            nn.Conv2d(16, 32, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(32),
+            nn.LeakyReLU(0.2, inplace=True),
 
-        self.fc = nn.Linear(self.out_size, 1)
+            # [32, 64, 64] -> [64, 32, 32]
+            nn.Conv2d(32, 64, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(64),
+            nn.LeakyReLU(0.2, inplace=True),
+
+            # [64, 32, 32] -> [128, 16, 16]
+            nn.Conv2d(64, 128, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(0.2, inplace=True),
+
+            # [128, 16, 16] -> [256, 4, 4]
+            nn.Conv2d(128, 256, 4, 4, 1, bias=False),
+            nn.BatchNorm2d(256),
+            nn.LeakyReLU(0.2, inplace=True),
+
+            # [256, 4, 4] -> [1, 1, 1]
+            nn.Conv2d(256, 1, 4, 4, 1, bias=False)
+        )
 
     def forward(self, generated_data, true_data):
         """
@@ -44,24 +67,14 @@ class Disсriminator(nn.Module):
         data = generated_data + true_data
         del true_data
         data = t.cat([expand_with_zeroes(var, [512, 512]).unsqueeze(0) for var in data], 0)
-        data = self.unroll_convolutions(data)
+        data = self.main_conv(data).view(-1, 1)
 
-        result = self.fc(data).squeeze(1)
+        D_fake, D_real = data[:batch_size], data[batch_size:]
         del data
-
-        D_fake, D_real = result[:batch_size], result[batch_size:]
-        del result
 
         discriminator_loss = -D_real.mean() + D_fake.mean()
         generator_loss = -D_fake.mean()
 
         return discriminator_loss, generator_loss
 
-    def unroll_convolutions(self, input):
-        [batch_size, _, _, _] = input.size()
 
-        for i in range(len(self.conv_weights)):
-            input = F.relu(F.conv2d(input, self.conv_weights[i], self.conv_biases[i], padding=2))
-            input = F.avg_pool2d(input, 2) if i < len(self.conv_weights) - 1 else F.avg_pool2d(input, 4)
-
-        return input.view(batch_size, self.out_size)

@@ -2,6 +2,8 @@ import collections
 import os
 import re
 import numpy as np
+import torch as t
+from torch.autograd import Variable
 from six.moves import cPickle
 from scipy import misc
 
@@ -133,7 +135,8 @@ class BatchLoader:
         np.random.shuffle(annotations)
         test_train_annotations = [annotations[:500], annotations[500:]]
         [self.test_data, self.train_data] = [[{'image': self.images_path + row['image'],
-                                               'image_size': list(misc.imread(self.images_path + row['image']).shape)[:2],
+                                               'image_size': list(misc.imread(self.images_path + row['image']).shape)[
+                                                             :2],
                                                'word_ann': [self.word_to_idx[word] for word in row['ann']],
                                                'character_ann': [self.encode_characters(word) for word in row['ann']]}
                                               for row in target]
@@ -171,7 +174,7 @@ class BatchLoader:
         embeddings_learning_data = np.load(self.embeddings_learning_file)
         self.embeddings_len = len(embeddings_learning_data[0])
 
-    def next_batch(self, num_batches, target):
+    def next_batch(self, num_batches, target, use_cuda=False):
         """
         :param num_batches: num_batches to lockup from data 
         :param target: if target == 'train' then train data uses as target, in other case test data is used
@@ -208,9 +211,23 @@ class BatchLoader:
             decoder_input[i] += to_add * [self.word_to_idx[self.word_level_pad_token]]
             decoder_output[i] += to_add * [self.word_to_idx[self.word_level_pad_token]]
 
-        return np.array(word_level_encoder_input), np.array(character_level_encoder_input), np.array(latent_batches), \
-               np.array(real_latent_batches), np.array(latent_sizes)[:, :2], \
-               np.array(decoder_input), np.array(decoder_output)
+        word_level_encoder_input, character_level_encoder_input, latent_batches, \
+        real_latent_batches, latent_sizes, decoder_input, decoder_output = \
+            np.array(word_level_encoder_input), np.array(character_level_encoder_input), np.array(latent_batches), \
+            np.array(real_latent_batches), np.array(latent_sizes)[:, :2], np.array(decoder_input), \
+            np.array(decoder_output)
+
+        [word_level_encoder_input, character_level_encoder_input, decoder_input, decoder_output] = \
+            [Variable(t.from_numpy(var)) for var in
+             [word_level_encoder_input, character_level_encoder_input, decoder_input, decoder_output]]
+
+        if use_cuda:
+            [word_level_encoder_input, character_level_encoder_input, decoder_input, decoder_output] = \
+                [var.cuda() for var in
+                 [word_level_encoder_input, character_level_encoder_input, decoder_input, decoder_output]]
+
+        return word_level_encoder_input, character_level_encoder_input, latent_batches, \
+               real_latent_batches, latent_sizes, decoder_input, decoder_output
 
     def next_embedding_seq(self, seq_len):
         """

@@ -55,3 +55,29 @@ class CDVAE(nn.Module):
                                                 decoder_input=decoder_word_input)
 
         return seq_to_image_result, image_to_seq_result
+
+    def seq_to_image_parameters(self):
+        return [p for p in self.seq_to_image.parameters() if p.requires_grad]
+
+    def image_to_seq_parameters(self):
+        return [p for p in self.image_to_seq.parameters() if p.requires_grad]
+
+    def discriminator_parameters(self):
+        return [p for p in self.discriminator.parameters() if p.requires_grad]
+
+    def trainer(self, s2i_optimizer, i2s_optimizer, discriminator_optimizer, batch_loader):
+        def train(batch_size, use_cuda, drop_prob):
+
+            word_level_encoder_input, character_level_encoder_input, target_images, \
+            real_images, target_images_sizes, decoder_text_input, decoder_text_target = \
+                batch_loader.next_batch(batch_size, 'train')
+
+            [word_level_encoder_input, character_level_encoder_input, decoder_text_input, decoder_text_target] = \
+                [Variable(t.from_numpy(var)) for var in
+                 [word_level_encoder_input, character_level_encoder_input, decoder_text_input, decoder_text_target]]
+
+            if use_cuda:
+                [word_level_encoder_input, character_level_encoder_input, decoder_text_input, decoder_text_target] = \
+                [var.cuda() for var in
+                 [word_level_encoder_input, character_level_encoder_input, decoder_text_input, decoder_text_target]]
+

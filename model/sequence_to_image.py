@@ -19,9 +19,7 @@ class SequenceToImage(nn.Module):
         self.context_to_mu = nn.Linear(self.params.encoder_rnn_size * 2, self.params.latent_variable_size)
         self.context_to_logvar = nn.Linear(self.params.encoder_rnn_size * 2, self.params.latent_variable_size)
 
-        self.hidden_to_image_size = nn.Linear(self.params.latent_variable_size, self.params.hidden_size)
         self.image_decoder = ImageDecoder(self.params)
-        [self.input_channels, self.h, self.w] = self.params.hidden_view
 
     def forward(self, embeddings=None,
                 drop_prob=0,
@@ -68,8 +66,7 @@ class SequenceToImage(nn.Module):
             mu = None
             logvar = None
 
-        z = F.dropout(self.hidden_to_image_size(z), drop_prob)
-        z = z.view(-1, self.input_channels, self.h, self.w)
+        z = F.dropout(z, drop_prob)
         z = [self.image_decoder(var, target_sizes[i]).sigmoid()
              for i, var in enumerate(z)]
 

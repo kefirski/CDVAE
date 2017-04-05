@@ -21,7 +21,7 @@ class Parameters:
         self.text_decoder_rnn_size = 350
         self.text_decoder_num_layers = 2
 
-        self.latent_variable_size = 250
+        self.latent_variable_size = 200
 
         # (out_chanels, input_chanels, kernel_size)
         self.encoder_kernels = [(5, 3, 5),
@@ -33,18 +33,6 @@ class Parameters:
         self.encoder_conv_num_layers = len(self.encoder_kernels)
         self.image_encoder_out_size = (int(512 / (2 ** (self.encoder_conv_num_layers + 1))) ** 2) * \
                                       self.encoder_kernels[-1][0]
-
-        self.hidden_size = 1600
-        self.hidden_view = [100, 4, 4]
-        # (input_channels, output_channels, kernel_size, (out_h, out_w))
-        self.deconv_kernels = [(100, 90, 5, (8, 8)),
-                               (90, 80, 5, (16, 16)),
-                               (80, 40, 5, (32, 32)),
-                               (40, 20, 5, (64, 64)),
-                               (20, 15, 5, (128, 128)),
-                               (15, 6, 5, (256, 256))]
-        self.last_kernel = 6, 3, 5, (512, 512)
-        self.deconv_num_layers = len(self.deconv_kernels)
 
         # (out_chanels, input_chanels, kernel_size)
         self.discr_kernels = [(5, 3, 5),
