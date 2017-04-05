@@ -23,14 +23,4 @@ class Parameters:
 
         self.latent_variable_size = 200
 
-        # (out_chanels, input_chanels, kernel_size)
-        self.encoder_kernels = [(5, 3, 5),
-                                (10, 5, 5),
-                                (14, 10, 5),
-                                (17, 14, 5),
-                                (19, 17, 5),
-                                (20, 19, 5)]
-        self.encoder_conv_num_layers = len(self.encoder_kernels)
-        self.image_encoder_out_size = (int(512 / (2 ** (self.encoder_conv_num_layers + 1))) ** 2) * \
-                                      self.encoder_kernels[-1][0]
 
