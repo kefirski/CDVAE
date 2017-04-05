@@ -86,7 +86,7 @@ class ImageDecoder(nn.Module):
         x = x if h_even else x[:, :, :-1, :]
         x = x if w_even else x[:, :, :, :-1]
 
-        return F.tanh(x.squeeze(0))
+        return F.sigmoid(x.squeeze(0))
 
     def padding(self, size):
         diff = 500 - size

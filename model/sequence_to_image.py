@@ -67,11 +67,10 @@ class SequenceToImage(nn.Module):
             logvar = None
 
         z = F.dropout(z, drop_prob)
-        z = [self.image_decoder(var, target_sizes[i]).sigmoid()
+        z = [self.image_decoder(var, target_sizes[i])
              for i, var in enumerate(z)]
 
         return z, kld, (mu, logvar)
-
 
     @staticmethod
     def mse(z, image_paths):
