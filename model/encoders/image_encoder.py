@@ -1,10 +1,7 @@
-import math
 import torch as t
 import torch.nn as nn
-import torch.nn.init as init
 import torch.nn.functional as F
 from scipy import misc
-from torch.nn import Parameter
 from torch.autograd import Variable
 from torch_modules.other.highway import Highway
 from torch_modules.other.expand_with_zeros import expand_with_zeroes

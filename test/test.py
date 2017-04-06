@@ -8,7 +8,7 @@ from utils.parameters import Parameters
 from torch_modules.other.embedding_lockup import EmbeddingLockup
 from model.encoders.image_encoder import ImageEncoder
 from model.encoders.text_encoder import TextEncoder
-from model.disсriminator import Disсriminator
+from model.wasserstein_discriminator import WassersteinDiscriminator
 from torch_modules.other.expand_with_zeros import expand_with_zeroes
 from model.cdvae import CDVAE
 from utils.functions import *
@@ -31,8 +31,7 @@ if __name__ == '__main__':
     real_images, target_images_sizes, decoder_text_input, decoder_text_target = \
         batch_loader.next_batch(batch_size, 'train')
 
-
-    discriminator = Disсriminator(parameters, '../')
+    discriminator = WassersteinDiscriminator(parameters, '../')
     print('discriminator is initialized 👍\n')
     gen = [Variable(t.rand([3, 500, 500])) for _ in range(batch_size - 3)] + \
           [Variable(t.rand([3, 400, 450])) for _ in range(3)]
@@ -46,7 +45,7 @@ if __name__ == '__main__':
     print('image encoder is initialized 👍\n')
     image_encoder_result = image_encoder(target_images)
     assert image_encoder_result[0] == len(target_images) and \
-           image_encoder_result[1] == parameters.image_encoder_out_size, 'invalid image encoder size ⛔'
+           image_encoder_result[1] == 512, 'invalid image encoder size ⛔'
     print('image encoder is valid 👍\n')
     del image_encoder
 

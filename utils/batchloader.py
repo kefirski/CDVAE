@@ -193,8 +193,8 @@ class BatchLoader:
 
         latent_batches = [batch['image'] for batch in raw_batches]
         latent_sizes = [batch['image_size'] for batch in raw_batches]
-        real_idx = np.random.choice(len(target_data), num_batches)
-        real_latent_batches = [batch['image'] for batch in target_data[real_idx]]
+        # real_idx = np.random.choice(len(target_data), num_batches)
+        # real_latent_batches = [batch['image'] for batch in target_data[real_idx]]
 
         decoder_input = [[self.word_to_idx[self.go_token]] + batch for batch in word_level_encoder_input]
         decoder_output = [batch + [self.word_to_idx[self.stop_token]] for batch in word_level_encoder_input]
@@ -212,9 +212,9 @@ class BatchLoader:
             decoder_output[i] += to_add * [self.word_to_idx[self.word_level_pad_token]]
 
         word_level_encoder_input, character_level_encoder_input, latent_batches, \
-        real_latent_batches, latent_sizes, decoder_input, decoder_output = \
+            latent_sizes, decoder_input, decoder_output = \
             np.array(word_level_encoder_input), np.array(character_level_encoder_input), np.array(latent_batches), \
-            np.array(real_latent_batches), np.array(latent_sizes)[:, :2], np.array(decoder_input), \
+            np.array(latent_sizes)[:, :2], np.array(decoder_input), \
             np.array(decoder_output)
 
         [word_level_encoder_input, character_level_encoder_input, decoder_input, decoder_output] = \
@@ -227,7 +227,12 @@ class BatchLoader:
                  [word_level_encoder_input, character_level_encoder_input, decoder_input, decoder_output]]
 
         return word_level_encoder_input, character_level_encoder_input, latent_batches, \
-               real_latent_batches, latent_sizes, decoder_input, decoder_output
+               latent_sizes, decoder_input, decoder_output
+
+    def sample_real_examples(self, num_examples):
+        idx = np.random.choice(len(self.train_data), num_examples)
+        real_examples = [batch['image'] for batch in self.train_data[idx]]
+        return np.array(real_examples)
 
     def next_embedding_seq(self, seq_len):
         """

@@ -1,5 +1,6 @@
 import torch as t
 import torch.nn as nn
+import torch.nn.functional as F
 from scipy import misc
 from torch.autograd import Variable
 from model.encoders.image_encoder import ImageEncoder
@@ -72,7 +73,11 @@ class ImageToSequence(nn.Module):
 
         return out, final_state, kld, (mu, logvar)
 
+    def cross_entropy(self, out, target):
+        out = out.view(-1, self.params.word_vocab_size)
+        target = target.view(-1)
 
+        return F.cross_entropy(out, target)
 
 
 

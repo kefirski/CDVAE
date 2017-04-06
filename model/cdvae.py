@@ -1,8 +1,10 @@
+import torch as t
 import torch.nn as nn
 from torch_modules.other.embedding_lockup import EmbeddingLockup
+from torch.autograd import Variable
 from model.sequence_to_image import SequenceToImage
 from model.image_to_sequence import ImageToSequence
-from model.disсriminator import Disсriminator
+from model.wasserstein_discriminator import WassersteinDiscriminator
 
 
 class CDVAE(nn.Module):
@@ -18,14 +20,14 @@ class CDVAE(nn.Module):
         takes batch size of sequences and sample appropriate images
         discriminator network uses to make images more realistic
         """
-        self.seq_to_image = SequenceToImage(params)
-        self.discriminator = Disсriminator(params, self.path_prefix)
+        self.seq2image = SequenceToImage(params)
+        self.discr = WassersteinDiscriminator(params, self.path_prefix)
 
         """
         takes array of images of batch size length to emit batch size of sequences
         model uses decoder context input in pair with latent representation
         """
-        self.image_to_seq = ImageToSequence(params, self.path_prefix)
+        self.image2seq = ImageToSequence(params, self.path_prefix)
 
     def forward(self, drop_prob=0,
                 encoder_word_input=None, encoder_character_input=None,
@@ -43,41 +45,88 @@ class CDVAE(nn.Module):
         In order to sample data from decoders of these models use :sample_image: and :sample_seq: methods
         """
 
-        seq_to_image_result = self.seq_to_image(self.embeddings,
-                                                drop_prob=drop_prob,
-                                                encoder_word_input=encoder_word_input,
-                                                encoder_character_input=encoder_character_input,
-                                                target_sizes=target_image_sizes)
+        seq_to_image_result = self.seq2image(self.embeddings,
+                                             drop_prob=drop_prob,
+                                             encoder_word_input=encoder_word_input,
+                                             encoder_character_input=encoder_character_input,
+                                             target_sizes=target_image_sizes)
 
-        image_to_seq_result = self.image_to_seq(self.embeddings,
-                                                drop_prob=drop_prob,
-                                                encoder_image_input=target_images,
-                                                decoder_input=decoder_word_input)
+        image_to_seq_result = self.image2seq(self.embeddings,
+                                             drop_prob=drop_prob,
+                                             encoder_image_input=target_images,
+                                             decoder_input=decoder_word_input)
 
         return seq_to_image_result, image_to_seq_result
 
-    def seq_to_image_parameters(self):
-        return [p for p in self.seq_to_image.parameters() if p.requires_grad]
+    def seq2image_parameters(self):
+        return [p for p in self.seq2image.parameters() if p.requires_grad]
 
-    def image_to_seq_parameters(self):
-        return [p for p in self.image_to_seq.parameters() if p.requires_grad]
+    def image2seq_parameters(self):
+        return [p for p in self.image2seq.parameters() if p.requires_grad]
 
-    def discriminator_parameters(self):
-        return [p for p in self.discriminator.parameters() if p.requires_grad]
+    def discr_parameters(self):
+        return [p for p in self.discr.parameters() if p.requires_grad]
 
-    def trainer(self, s2i_optimizer, i2s_optimizer, discriminator_optimizer, batch_loader):
-        def train(batch_size, use_cuda, drop_prob):
+    def trainer(self, s2i_optimizer, i2s_optimizer, disc_optimizer, batch_loader):
+        def train(batch_size, num_discr_updates, use_cuda, drop_prob):
+            """
+            :param batch_size: batch size 
+            :param use_cuda: whether to use cuda
+            :param drop_prob: drop probability
+            
+            propagate seq2image, image2seq and discriminator networks and updates them in appropriate way
+            """
 
-            word_level_encoder_input, character_level_encoder_input, target_images, \
-                real_images, target_images_sizes, decoder_text_input, decoder_text_target = \
+            word_encoder_input, character_encoder_input, images_input, \
+                images_input_sizes, word_decoder_input, word_decoder_target = \
                 batch_loader.next_batch(batch_size, 'train')
 
-            [word_level_encoder_input, character_level_encoder_input, decoder_text_input, decoder_text_target] = \
-                [Variable(t.from_numpy(var)) for var in
-                 [word_level_encoder_input, character_level_encoder_input, decoder_text_input, decoder_text_target]]
+            # update discriminator network
+            for i in range(num_discr_updates):
+                z = Variable(t.randn([batch_size, self.params.latent_variable_size]))
+                if use_cuda:
+                    z = z.cuda()
 
-            if use_cuda:
-                [word_level_encoder_input, character_level_encoder_input, decoder_text_input, decoder_text_target] = \
-                [var.cuda() for var in
-                 [word_level_encoder_input, character_level_encoder_input, decoder_text_input, decoder_text_target]]
+                image_out, _, _ = self.seq2image(self.embeddings, target_sizes=images_input_sizes, z=z)
+                d_loss, _ = self.discr(image_out, true_data=batch_loader.sample_real_examples(batch_size))
+
+                disc_optimizer.zero_grad()
+                d_loss.backward()
+                disc_optimizer.step()
+
+                for p in self.discr.parameters():
+                    p.data.clamp_(-0.01, 0.01)
+
+            # update both sequence to image and image to sequence models
+            (out_s2i, kld_s2i, (mu_s2i, logvar_s2i)), (out_i2s, _, kld_i2s, (mu_i2s, logvar_i2s)) \
+                = self(drop_prob, word_encoder_input, character_encoder_input,
+                       images_input, images_input_sizes, word_decoder_input)
+
+            reconst_loss_s2i = SequenceToImage.mse(out_s2i, images_input)
+            reconst_loss_i2s = self.image2seq.cross_entropy(out_i2s, word_decoder_target)
+            kld_id_loss = t.pow(mu_i2s - mu_s2i, 2).mean() + t.pow(logvar_i2s - logvar_s2i, 2).mean()
+            _, g_loss_s2i = self.discr(out_s2i, true_data=batch_loader.sample_real_examples(batch_size))
+
+            """
+            both losses are constructed from reconstruction loss, KL-distance loss
+            and kld-identity loss that forces models to have the same q(z|x) and q(z|y) 
+            where x and y are domains of learning
+            
+            sequence to image model also provided with generation loss from WGAN model
+            to make sampled data look better
+            """
+            loss_s2i = reconst_loss_s2i + kld_s2i + kld_id_loss + g_loss_s2i
+            loss_i2s = reconst_loss_i2s + kld_i2s + kld_id_loss
+
+            s2i_optimizer.zero_grad()
+            loss_s2i.backward(retain_variables=True)
+            s2i_optimizer.step()
+
+            i2s_optimizer.zero_grad()
+            loss_i2s.backward()
+            i2s_optimizer.step()
+
+            return (reconst_loss_s2i, kld_s2i, g_loss_s2i), (reconst_loss_i2s, kld_i2s), kld_id_loss
+
+        return train
 

@@ -57,7 +57,7 @@ class ImageDecoder(nn.Module):
             out of last deconv is [512, 512] image. 
             thus it is neccesary to padd it with base padding to emit base [500, 500] image
         '''
-        self.base_padding = 6 + 2
+        self.base_padding = 6
 
     def forward(self, x, out_size):
         """
@@ -76,7 +76,7 @@ class ImageDecoder(nn.Module):
         (h_padding, h_even), (w_padding, w_even) = self.padding(out_height), self.padding(out_width)
 
         x = self.main_deconv(x)
-        x = x[:, :, h_padding - 2:512 - h_padding + 2, w_padding - 2:512 - w_padding + 2]
+        x = x[:, :, h_padding:512 - h_padding, w_padding:512 - w_padding]
 
         # final deconv to emit output with given size
         # x = F.conv_transpose2d(x, self.last_kernel, padding=(h_padding, w_padding))

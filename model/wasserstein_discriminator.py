@@ -1,17 +1,15 @@
-import math
 import torch as t
 import torch.nn as nn
 import torch.nn.init as init
 import torch.nn.functional as F
 from scipy import misc
-from torch.nn import Parameter
 from torch.autograd import Variable
 from torch_modules.other.expand_with_zeros import expand_with_zeroes
 
 
-class Disсriminator(nn.Module):
+class WassersteinDiscriminator(nn.Module):
     def __init__(self, params, path_prefix):
-        super(Disсriminator, self).__init__()
+        super(WassersteinDiscriminator, self).__init__()
 
         self.params = params
 
