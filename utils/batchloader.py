@@ -234,6 +234,9 @@ class BatchLoader:
         real_examples = [batch['image'] for batch in self.train_data[idx]]
         return np.array(real_examples)
 
+    def go_input(self, batch_size):
+        return np.array([[self.word_to_idx[self.go_token]] for _ in range(batch_size)])
+
     def next_embedding_seq(self, seq_len):
         """
         :return: pair of input and output for word embeddings learning for approproate indexes with aware of batches 

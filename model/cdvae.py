@@ -85,7 +85,7 @@ class CDVAE(nn.Module):
             for i in range(num_discr_updates):
                 z = t.randn([batch_size, self.params.latent_variable_size])
 
-                image_out, _, _ = self.sample_images(z, images_input_sizes, use_cuda)
+                image_out = self.sample_images(z, images_input_sizes, use_cuda)
                 d_loss, _ = self.discr(image_out, true_data=batch_loader.sample_real_examples(batch_size))
 
                 disc_optimizer.zero_grad()
@@ -128,10 +128,40 @@ class CDVAE(nn.Module):
 
         return train
 
-    def sample_images(self, z, target_sizes, use_cuda):
+    def sample_images(self, z, target_sizes, use_cuda, to_numpy=False):
         z = Variable(z)
         if use_cuda:
             z = z.cuda()
-        return self.seq2image(self.embeddings, target_sizes, z=z)[0]
+        result = self.seq2image(self.embeddings, target_sizes, z=z)[0]
+        
+        return result.data.cpu().numpy() if to_numpy else result
+
+    def sample_seq(self, batch_loader, seq_len, z, use_cuda):
+        z = Variable(z)
+
+        decoder_input = batch_loader.go_input(1)
+        decoder_input = Variable(t.from_numpy(decoder_input))
+        if use_cuda:
+            z = z.cuda()
+            decoder_input = decoder_input.cuda()
+
+        result = ''
+        initial_state = None
+
+        for i in range(seq_len):
+            logits, final_state, _, _ = self.image2seq(decoder_input=decoder_input, initial_state=initial_state, z=z)
+
+            if word == batch_loader.end_token:
+                break
+
+            result += ' ' + word
+
+            decoder_input = np.array([[batch_loader.word_to_idx[word]]])
+            decoder_input = Variable(t.from_numpy(decoder_input).long())
+
+            if use_cuda:
+                decoder_input = decoder_input.cuda()
+
+        return result
 
 
