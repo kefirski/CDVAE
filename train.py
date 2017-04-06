@@ -63,3 +63,8 @@ if __name__ == "__main__":
             print('|---------------------------------kl-id---------------------------------|')
             print(kld_id_loss.data.cpu().numpy()[0])
             print('|-----------------------------------------------------------------------|')
+
+        if iteration % 25 == 0:
+            seed = np.random.normal(size=[1, parameters.latent_variable_size])
+            sampled_image, sampled_seq = cdvae.sample(batch_loader, [[450, 450]], 12, seed, args.use_cuda)
+            print(sampled_seq)

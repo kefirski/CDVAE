@@ -1,10 +1,12 @@
 import torch as t
 import torch.nn as nn
+import numpy as np
 from torch_modules.other.embedding_lockup import EmbeddingLockup
 from torch.autograd import Variable
 from model.sequence_to_image import SequenceToImage
 from model.image_to_sequence import ImageToSequence
 from model.wasserstein_discriminator import WassersteinDiscriminator
+import torch.nn.functional as F
 
 
 class CDVAE(nn.Module):
@@ -132,9 +134,10 @@ class CDVAE(nn.Module):
         z = Variable(z)
         if use_cuda:
             z = z.cuda()
-        result = self.seq2image(self.embeddings, target_sizes, z=z)[0]
-        
-        return result.data.cpu().numpy() if to_numpy else result
+            
+        result = self.seq2image(embeddings=self.embeddings, target_sizes=target_sizes, z=z)[0]
+
+        return [var.data.cpu().numpy() for var in result] if to_numpy else result
 
     def sample_seq(self, batch_loader, seq_len, z, use_cuda):
         z = Variable(z)
@@ -149,9 +152,15 @@ class CDVAE(nn.Module):
         initial_state = None
 
         for i in range(seq_len):
-            logits, final_state, _, _ = self.image2seq(decoder_input=decoder_input, initial_state=initial_state, z=z)
+            logits, final_state, _, _ = self.image2seq(embeddings=self.embeddings,
+                                                       decoder_input=decoder_input, initial_state=initial_state, z=z)
 
-            if word == batch_loader.end_token:
+            logits = logits.view(-1, self.params.word_vocab_size)
+            prediction = F.softmax(logits)
+
+            word = batch_loader.sample_word_from_distribution(prediction.data.cpu().numpy()[-1])
+
+            if word == batch_loader.stop_token:
                 break
 
             result += ' ' + word
@@ -164,4 +173,6 @@ class CDVAE(nn.Module):
 
         return result
 
-
+    def sample(self, batch_loader, target_sizes, seq_len, z, use_cuda):
+        z = t.from_numpy(z).float()
+        return self.sample_images(z, target_sizes, use_cuda, True), self.sample_seq(batch_loader, seq_len, z, use_cuda)
