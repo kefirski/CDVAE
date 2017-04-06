@@ -61,5 +61,5 @@ if __name__ == "__main__":
             print(reconst_loss_i2s.data.cpu().numpy()[0],
                   kld_i2s.data.cpu().numpy()[0])
             print('|---------------------------------kl-id---------------------------------|')
-            print(kld_id_loss)
+            print(kld_id_loss.data.cpu().numpy()[0])
             print('|-----------------------------------------------------------------------|')

@@ -42,7 +42,7 @@ class CDVAE(nn.Module):
         :param decoder_word_input: An tensor with shape of [batch_size, max_seq_len + 1] of Long type
         
         This method is necessary to forward propagate of both seq_to_image and image_to_seq models
-        In order to sample data from decoders of these models use :sample_image: and :sample_seq: methods
+        In order to sample data from decoders of these models use :sample_images: and :sample_seq: methods
         """
 
         seq_to_image_result = self.seq2image(self.embeddings,
@@ -83,11 +83,9 @@ class CDVAE(nn.Module):
 
             # update discriminator network
             for i in range(num_discr_updates):
-                z = Variable(t.randn([batch_size, self.params.latent_variable_size]))
-                if use_cuda:
-                    z = z.cuda()
+                z = t.randn([batch_size, self.params.latent_variable_size])
 
-                image_out, _, _ = self.seq2image(self.embeddings, target_sizes=images_input_sizes, z=z)
+                image_out, _, _ = self.sample_images(z, images_input_sizes, use_cuda)
                 d_loss, _ = self.discr(image_out, true_data=batch_loader.sample_real_examples(batch_size))
 
                 disc_optimizer.zero_grad()
@@ -116,7 +114,7 @@ class CDVAE(nn.Module):
             to make sampled data look better
             """
             loss_s2i = reconst_loss_s2i + kld_s2i + kld_id_loss + g_loss_s2i
-            loss_i2s = reconst_loss_i2s + kld_i2s + kld_id_loss
+            loss_i2s = 79 * reconst_loss_i2s + kld_i2s + kld_id_loss
 
             s2i_optimizer.zero_grad()
             loss_s2i.backward(retain_variables=True)
@@ -129,4 +127,11 @@ class CDVAE(nn.Module):
             return (reconst_loss_s2i, kld_s2i, g_loss_s2i), (reconst_loss_i2s, kld_i2s), kld_id_loss
 
         return train
+
+    def sample_images(self, z, target_sizes, use_cuda):
+        z = Variable(z)
+        if use_cuda:
+            z = z.cuda()
+        return self.seq2image(self.embeddings, target_sizes, z=z)[0]
+
 
