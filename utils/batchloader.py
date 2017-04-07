@@ -49,7 +49,7 @@ class BatchLoader:
             self.load_preprocessed_data()
             print('preprocessed data have loaded')
         else:
-            print('data preprocessing have started. Be patient –– it will take a while')
+            print('data preprocessing have started. Be patient - it will take a while')
             self.preprocess_data()
             print('data have preprocessed')
 
@@ -112,7 +112,7 @@ class BatchLoader:
             os.makedirs(self.tensors_path)
 
         # be aware that ann.txt should't contain empty string in the end of file
-        with open(self.ann_path, "r") as f:
+        with open(self.ann_path, "r", encoding='utf-8') as f:
             annotations = f.read()
 
         annotations = np.array(annotations.split('\n'))
