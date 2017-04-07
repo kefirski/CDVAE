@@ -116,7 +116,7 @@ class CDVAE(nn.Module):
             to make sampled data look better
             """
             loss_s2i = reconst_loss_s2i + kld_s2i + kld_id_loss + g_loss_s2i
-            loss_i2s = 79 * reconst_loss_i2s + kld_i2s + kld_id_loss
+            loss_i2s = reconst_loss_i2s + kld_i2s + kld_id_loss
 
             s2i_optimizer.zero_grad()
             loss_s2i.backward(retain_variables=True)

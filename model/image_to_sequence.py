@@ -74,10 +74,13 @@ class ImageToSequence(nn.Module):
         return out, final_state, kld, (mu, logvar)
 
     def cross_entropy(self, out, target):
+
+        [batch_size, _] = out.size()
+
         out = out.view(-1, self.params.word_vocab_size)
         target = target.view(-1)
 
-        return F.cross_entropy(out, target)
+        return F.cross_entropy(out, target, size_average=False)/batch_size
 
 
 

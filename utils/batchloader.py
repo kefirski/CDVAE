@@ -148,7 +148,7 @@ class BatchLoader:
         self.embeddings_learning_data = [[self.word_to_idx[word] for word in row['ann']] for row in annotations]
         self.embeddings_learning_data = [self._embedding_seq(batch) for batch in self.embeddings_learning_data]
         self.embeddings_learning_data = np.concatenate(self.embeddings_learning_data, 1).astype(int)
-        self.embeddings_len = len(embeddings_learning_data[0])
+        self.embeddings_len = len(self.embeddings_learning_data[0])
 
         np.save(self.embeddings_learning_file, self.embeddings_learning_data)
 

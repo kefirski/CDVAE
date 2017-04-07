@@ -2,6 +2,7 @@ import argparse
 import os
 import numpy as np
 import torch as t
+import scipy.misc
 from torch.optim import Adam
 from utils.batchloader import BatchLoader
 from utils.parameters import Parameters
@@ -12,6 +13,9 @@ if __name__ == "__main__":
 
     if not os.path.exists('data/word_embeddings.npy'):
         raise FileNotFoundError("word embeddings file was't found")
+
+    if not os.path.exists('samplings/'):
+        os.makedirs('samplings/')
 
     path_prefix = ''
 
@@ -68,3 +72,7 @@ if __name__ == "__main__":
             seed = np.random.normal(size=[1, parameters.latent_variable_size])
             sampled_image, sampled_seq = cdvae.sample(batch_loader, [[450, 450]], 12, seed, args.use_cuda)
             print(sampled_seq)
+            scipy.misc.imsave('{}_image.jpg'.format(iteration), sampled_image[0])
+            with open('{}_ann.jpg'.format(iteration), 'w') as f:
+                f.write(sampled_seq)
+
