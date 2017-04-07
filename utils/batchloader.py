@@ -117,7 +117,7 @@ class BatchLoader:
 
         annotations = np.array(annotations.split('\n'))
         annotations = np.array([annotation.split('\t') for annotation in annotations])
-        annotations = np.array([[element[:-2] for element in line] for line in annotations])
+        annotations = np.array([[element[:-2].lower() for element in line] for line in annotations])
 
         self.num_annotations = len(annotations)
 
