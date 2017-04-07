@@ -175,7 +175,7 @@ class BatchLoader:
             [len(row['word_ann']) for target in [self.train_data, self.test_data] for row in target])
 
         self.embeddings_learning_data = np.load(self.embeddings_learning_file)
-        self.embeddings_len = len(embeddings_learning_data[0])
+        self.embeddings_len = len(self.embeddings_learning_data[0])
 
     def next_batch(self, num_batches, target, use_cuda=False):
         """
