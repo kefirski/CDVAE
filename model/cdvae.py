@@ -134,7 +134,7 @@ class CDVAE(nn.Module):
         z = Variable(z)
         if use_cuda:
             z = z.cuda()
-            
+
         result = self.seq2image(embeddings=self.embeddings, target_sizes=target_sizes, z=z)[0]
 
         return [var.data.cpu().numpy() for var in result] if to_numpy else result

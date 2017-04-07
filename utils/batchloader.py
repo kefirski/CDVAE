@@ -34,11 +34,11 @@ class BatchLoader:
         self.word_level_pad_token = '|'
         self.character_level_pad_token = ''
 
-        tensors_path = data_path + 'preprocessed_data/'
-        self.idx_files = [tensors_path + 'words_vocab.pkl',
-                          tensors_path + 'characters_vocab.pkl']
-        self.tensor_files = [tensors_path + 'train_tensor.npy', tensors_path + 'valid_tensor.npy']
-        self.embeddings_learning_file = tensors_path + 'embedd_idx.npy'
+        self.tensors_path = data_path + 'preprocessed_data/'
+        self.idx_files = [self.tensors_path + 'words_vocab.pkl',
+                          self.tensors_path + 'characters_vocab.pkl']
+        self.tensor_files = [self.tensors_path + 'train_tensor.npy', self.tensors_path + 'valid_tensor.npy']
+        self.embeddings_learning_file = self.tensors_path + 'embedd_idx.npy'
 
         idx_files_exist = all([os.path.exists(file) for file in self.idx_files])
         tensor_files_exist = all([os.path.exists(file) for file in self.tensor_files])
@@ -107,6 +107,9 @@ class BatchLoader:
         """
         performs data preprocessing
         """
+
+        if not os.path.exists(self.tensors_path):
+            os.makedirs(self.tensors_path)
 
         # be aware that ann.txt should't contain empty string in the end of file
         with open(self.ann_path, "r") as f:
