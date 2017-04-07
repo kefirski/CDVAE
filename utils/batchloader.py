@@ -145,12 +145,12 @@ class BatchLoader:
                                               for row in target]
                                              for target in test_train_annotations]
 
-        embeddings_learning_data = [[self.word_to_idx[word] for word in row['ann']] for row in annotations]
-        embeddings_learning_data = [self._embedding_seq(batch) for batch in embeddings_learning_data]
-        embeddings_learning_data = np.concatenate(embeddings_learning_data, 1).astype(int)
+        self.embeddings_learning_data = [[self.word_to_idx[word] for word in row['ann']] for row in annotations]
+        self.embeddings_learning_data = [self._embedding_seq(batch) for batch in self.embeddings_learning_data]
+        self.embeddings_learning_data = np.concatenate(self.embeddings_learning_data, 1).astype(int)
         self.embeddings_len = len(embeddings_learning_data[0])
 
-        np.save(self.embeddings_learning_file, embeddings_learning_data)
+        np.save(self.embeddings_learning_file, self.embeddings_learning_data)
 
         np.save(self.tensor_files[0], self.train_data)
         np.save(self.tensor_files[1], self.test_data)
@@ -174,7 +174,7 @@ class BatchLoader:
         self.max_seq_len = np.amax(
             [len(row['word_ann']) for target in [self.train_data, self.test_data] for row in target])
 
-        embeddings_learning_data = np.load(self.embeddings_learning_file)
+        self.embeddings_learning_data = np.load(self.embeddings_learning_file)
         self.embeddings_len = len(embeddings_learning_data[0])
 
     def next_batch(self, num_batches, target, use_cuda=False):
@@ -245,9 +245,7 @@ class BatchLoader:
         :return: pair of input and output for word embeddings learning for approproate indexes with aware of batches 
         """
 
-        data = np.load(self.embeddings_learning_file)
-
-        embedding_seq = np.array([data[:, i % self.num_annotations]
+        embedding_seq = np.array([self.embeddings_learning_data[:, i % self.num_annotations]
                                   for i in np.arange(self.word_embeddings_index, self.word_embeddings_index + seq_len)])
 
         self.word_embeddings_index = (self.word_embeddings_index + seq_len) % self.num_annotations
