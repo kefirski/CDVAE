@@ -3,7 +3,7 @@ import torch.nn as nn
 from torch.autograd import Variable
 
 
-def expand_with_zeroes(result, size):
+def expand_with_zeroes(result, size, use_cuda):
     assert len(result.size()) == 3 and len(size) == 2
 
     [batch_size, in_height, in_width] = result.size()
@@ -17,8 +17,13 @@ def expand_with_zeroes(result, size):
                                                          for size in [expand_height, expand_width]]
 
     zeros = Variable(t.zeros([batch_size, in_height, expand_width]))
-    result = t.cat(tuple([zeros, result, zeros]), 2)
-    zeros = Variable(t.zeros([batch_size, expand_height, expand_width * 2 + in_width]))
-    result = t.cat(tuple([zeros, result, zeros]), 1)[:, from_h:, from_w:]
+    if use_cuda:
+        zeros = zeros.cuda()
 
-    return result
+    result = t.cat([zeros, result, zeros], 2)
+
+    zeros = Variable(t.zeros([batch_size, expand_height, expand_width * 2 + in_width]))
+    if use_cuda:
+        zeros = zeros.cuda()
+
+    return t.cat([zeros, result, zeros], 1)[:, from_h:, from_w:]

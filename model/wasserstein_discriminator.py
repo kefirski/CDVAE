@@ -49,7 +49,7 @@ class WassersteinDiscriminator(nn.Module):
             nn.Conv2d(256, 1, 4, 4, 1, bias=False)
         )
 
-    def forward(self, generated_data, true_data):
+    def forward(self, generated_data, true_data, use_cuda):
         """
         :param generated_data: An array of tensors with shape [3, height_i, width_i] of batch_size length
         :param true_data: An array of paths of true data
@@ -64,7 +64,7 @@ class WassersteinDiscriminator(nn.Module):
 
         data = generated_data + true_data
         del true_data
-        data = t.cat(tuple([expand_with_zeroes(var, [512, 512]).unsqueeze(0) for var in data]), 0)
+        data = t.cat([expand_with_zeroes(var, [512, 512], use_cuda).unsqueeze(0) for var in data], 0)
         data = self.main_conv(data).view(-1, 1)
 
         D_fake, D_real = data[:batch_size], data[batch_size:]

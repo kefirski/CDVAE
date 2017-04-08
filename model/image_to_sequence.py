@@ -54,7 +54,7 @@ class ImageToSequence(nn.Module):
             assert decoder_input.size()[0] == len(encoder_image_input), \
                 'while training each image should be provided with sequence to sample with'
 
-            context = self.image_encoder(encoder_image_input)
+            context = self.image_encoder(encoder_image_input, use_cuda)
 
             mu = self.context_to_mu(context)
             logvar = self.context_to_logvar(context)

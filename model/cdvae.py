@@ -88,7 +88,7 @@ class CDVAE(nn.Module):
                 z = t.randn([batch_size, self.params.latent_variable_size])
 
                 image_out = self.sample_images(z, images_input_sizes, use_cuda)
-                d_loss, _ = self.discr(image_out, true_data=batch_loader.sample_real_examples(batch_size))
+                d_loss, _ = self.discr(image_out, batch_loader.sample_real_examples(batch_size), use_cuda)
 
                 disc_optimizer.zero_grad()
                 d_loss.backward()
@@ -105,7 +105,7 @@ class CDVAE(nn.Module):
             reconst_loss_s2i = SequenceToImage.mse(out_s2i, images_input)
             reconst_loss_i2s = self.image2seq.cross_entropy(out_i2s, word_decoder_target)
             kld_id_loss = t.pow(mu_i2s - mu_s2i, 2).mean() + t.pow(logvar_i2s - logvar_s2i, 2).mean()
-            _, g_loss_s2i = self.discr(out_s2i, true_data=batch_loader.sample_real_examples(batch_size))
+            _, g_loss_s2i = self.discr(out_s2i, batch_loader.sample_real_examples(batch_size), use_cuda)
 
             """
             both losses are constructed from reconstruction loss, KL-distance loss
