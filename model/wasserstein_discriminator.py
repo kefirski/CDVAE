@@ -61,6 +61,8 @@ class WassersteinDiscriminator(nn.Module):
 
         true_data = [misc.imread(self.path_prefix + path) / 255 for path in true_data]
         true_data = [(Variable(t.from_numpy(image))).float().transpose(2, 0).contiguous() for image in true_data]
+        if use_cuda:
+            true_data = [var.cuda() for var in true_data]
 
         data = generated_data + true_data
         del true_data

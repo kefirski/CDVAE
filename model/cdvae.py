@@ -86,6 +86,8 @@ class CDVAE(nn.Module):
             # update discriminator network
             for i in range(num_discr_updates):
                 z = t.randn([batch_size, self.params.latent_variable_size])
+                if use_cuda:
+                    z = z.cuda()
 
                 image_out = self.sample_images(z, images_input_sizes, use_cuda)
                 d_loss, _ = self.discr(image_out, batch_loader.sample_real_examples(batch_size), use_cuda)
