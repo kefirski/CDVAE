@@ -38,8 +38,8 @@ class TextDecoder(nn.Module):
         '''
         decoder_input = F.dropout(decoder_input, drop_prob)
 
-        z = t.cat([z] * seq_len, 1).view(batch_size, seq_len, self.params.latent_variable_size)
-        decoder_input = t.cat([decoder_input, z], 2)
+        z = t.cat(tuple([z] * seq_len), 1).view(batch_size, seq_len, self.params.latent_variable_size)
+        decoder_input = t.cat(tuple([decoder_input, z]), 2)
 
         rnn_out, final_state = self.rnn(decoder_input, initial_state)
 

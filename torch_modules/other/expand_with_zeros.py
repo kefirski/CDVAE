@@ -17,8 +17,8 @@ def expand_with_zeroes(result, size):
                                                          for size in [expand_height, expand_width]]
 
     zeros = Variable(t.zeros([batch_size, in_height, expand_width]))
-    result = t.cat([zeros, result, zeros], 2)
+    result = t.cat(tuple([zeros, result, zeros]), 2)
     zeros = Variable(t.zeros([batch_size, expand_height, expand_width * 2 + in_width]))
-    result = t.cat([zeros, result, zeros], 1)[:, from_h:, from_w:]
+    result = t.cat(tuple([zeros, result, zeros]), 1)[:, from_h:, from_w:]
 
     return result
