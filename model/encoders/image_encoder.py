@@ -61,6 +61,9 @@ class ImageEncoder(nn.Module):
 
         images = [misc.imread(self.path_prefix + path) / 255 for path in images]
         images = [(Variable(t.from_numpy(image))).float().transpose(2, 0).contiguous() for image in images]
+        if use_cuda:
+            images = [var.cuda() for var in images]
+
         images = t.cat(tuple([expand_with_zeroes(var, [512, 512], use_cuda).unsqueeze(0) for var in images]), 0)
 
         images = self.main_conv(images).view(batch_size, 512)
