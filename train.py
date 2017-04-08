@@ -72,7 +72,7 @@ if __name__ == "__main__":
             seed = np.random.normal(size=[1, parameters.latent_variable_size])
             sampled_image, sampled_seq = cdvae.sample(batch_loader, [[450, 450]], 12, seed, args.use_cuda)
             print(sampled_seq)
-            scipy.misc.imsave('{}_image.jpg'.format(iteration), sampled_image[0])
+            scipy.misc.imsave('{}_image.jpg'.format(iteration), sampled_image[0].transpose(1, 2, 0))
             with open('{}_ann.jpg'.format(iteration), 'w') as f:
                 f.write(sampled_seq)
 
