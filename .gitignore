@@ -10,9 +10,10 @@ experimentation.py
 *.so
 
 images/
+samplings/
 word_embeddings.npy
 preprocessed_data/
-test.py
+test/
 
 # Distribution / packaging
 .Python
