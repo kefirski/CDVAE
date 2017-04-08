@@ -177,7 +177,7 @@ class BatchLoader:
         self.embeddings_learning_data = np.load(self.embeddings_learning_file)
         self.embeddings_len = len(self.embeddings_learning_data[0])
 
-    def next_batch(self, num_batches, target, use_cuda=False):
+    def next_batch(self, num_batches, target, use_cuda):
         """
         :param num_batches: num_batches to lockup from data 
         :param target: if target == 'train' then train data uses as target, in other case test data is used

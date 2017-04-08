@@ -81,7 +81,7 @@ class CDVAE(nn.Module):
 
             word_encoder_input, character_encoder_input, images_input, \
                 images_input_sizes, word_decoder_input, word_decoder_target = \
-                batch_loader.next_batch(batch_size, 'train')
+                batch_loader.next_batch(batch_size, 'train', use_cuda)
 
             # update discriminator network
             for i in range(num_discr_updates):
