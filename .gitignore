@@ -1,19 +1,17 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
-*.py[cod]
 *$py.class
 
 .idea/
 experimentation.py
 *.DS_Store
-**/__pycache__
 *.so
 
 images/
 samplings/
 word_embeddings.npy
-preprocessed_data/
 test/
+data/
 
 # Distribution / packaging
 .Python
