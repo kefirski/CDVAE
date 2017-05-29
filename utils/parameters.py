@@ -6,7 +6,7 @@ class Parameters:
 
         self.vocab_size = int(vocab_size)
 
-        self.char_embed_size = 25
+        self.char_embed_size = 10
 
         self.text_encoder_size = 12
         self.text_encoder_num_layers = 5
@@ -18,6 +18,6 @@ class Parameters:
         self.audio_decoder_size = 6
         self.audio_decoder_num_layers = 6
 
-        self.latent_variable_size = 50
+        self.latent_variable_size = 100
 
 

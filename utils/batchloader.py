@@ -170,6 +170,9 @@ class BatchLoader:
             [Variable(t.from_numpy(var)) for var in [text_input, decoder_text_input, decoder_text_target,
                                                      audio_input, decoder_audio_input, decoder_audio_target]]
 
+        [audio_input, decoder_audio_input, decoder_audio_target] = \
+            [var.float() for var in [audio_input, decoder_audio_input, decoder_audio_target]]
+
         if use_cuda:
             [text_input, decoder_text_input, decoder_text_target,
              audio_input, decoder_audio_input, decoder_audio_target] = \
@@ -179,6 +182,23 @@ class BatchLoader:
         return [text_input, decoder_text_input, decoder_text_target,
                 audio_input, decoder_audio_input, decoder_audio_target]
 
+    def audio_go_input(self, batch_size, use_cuda):
+        input = np.array([[self.audio_go_token]] * batch_size)
+        input = Variable(t.from_numpy(input).float())
+
+        if use_cuda:
+            input = input.cuda()
+
+        return input
+
+    def text_go_input(self, batch_size, use_cuda):
+        input = np.array([[self.char_to_idx[self.text_go_token]]] * batch_size)
+        input = Variable(t.from_numpy(input).long())
+
+        if use_cuda:
+            input = input.cuda()
+
+        return input
+
     def sample_character_from_distribution(self, distribution):
-        idx = np.random.choice(self.vocab_size, p=distribution.ravel())
-        return self.idx_to_char[idx]
+        return np.random.choice(self.vocab_size, p=distribution.ravel())

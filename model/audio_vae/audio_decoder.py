@@ -1,7 +1,7 @@
 import torch as t
 import torch.nn as nn
 import torch.nn.functional as F
-from selfModules.highway import Highway
+from torch_modules.other.highway import Highway
 
 
 class AudioDecoder(nn.Module):
@@ -36,7 +36,7 @@ class AudioDecoder(nn.Module):
 
         result, final_state = self.rnn(decoder_input, initial_state)
 
-        result = result.contiguous().view(-1, self.params.text_decoder_size)
+        result = result.contiguous().view(-1, self.params.audio_decoder_size)
         result = self.highway(result)
         result = F.tanh(self.fc(result))
         result = result.view(batch_size, seq_len, 1)

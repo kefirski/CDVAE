@@ -1,7 +1,7 @@
 import torch as t
 import torch.nn as nn
 import torch.nn.functional as F
-from selfModules.highway import Highway
+from torch_modules.other.highway import Highway
 
 
 class TextDecoder(nn.Module):
@@ -16,7 +16,7 @@ class TextDecoder(nn.Module):
                           batch_first=True)
 
         self.highway = Highway(self.params.text_decoder_size, 3, F.elu)
-        self.fc = nn.Linear(self.params.text_decoder_size, self.params.char_embed_size)
+        self.fc = nn.Linear(self.params.text_decoder_size, self.params.vocab_size)
 
     def forward(self, decoder_input, z, initial_state=None):
         """
@@ -39,6 +39,6 @@ class TextDecoder(nn.Module):
         result = result.contiguous().view(-1, self.params.text_decoder_size)
         result = self.highway(result)
         result = self.fc(result)
-        result = result.view(batch_size, seq_len, self.params.char_embed_size)
+        result = result.view(batch_size, seq_len, self.params.vocab_size)
 
         return result, final_state
