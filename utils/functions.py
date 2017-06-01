@@ -15,14 +15,6 @@ def parameters_allocation_check(module):
     return fold(f_and, parameters, True) or not fold(f_or, parameters, False)
 
 
-def sample_z(mu, std, use_cuda):
-    """
-    :return: differentiable z ~ N(mu, std)
-    """
-    import torch
-
-    z = torch.autograd.Variable(torch.rand(mu.size()))
-    if use_cuda:
-        z = z.cuda()
-
-    return z * std + mu
+def kld_coef(i):
+    import math
+    return (math.tanh((i - 3000)/1000) + 1)/2

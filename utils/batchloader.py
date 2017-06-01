@@ -137,7 +137,6 @@ class BatchLoader:
 
         text_input = [element['text_data'] for element in data]
         audio_input = [list(sf.read(element['audio_path'])[0]) for element in data]
-        print(data[0]['audio_path'])
 
         decoder_text_input = [[self.char_to_idx[self.text_go_token]] + element for element in text_input]
         decoder_text_target = [element + [self.char_to_idx[self.text_stop_token]] for element in text_input]

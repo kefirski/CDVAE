@@ -2,7 +2,6 @@ import numpy as np
 import torch as t
 import torch.nn as nn
 import torch.nn.functional as F
-import soundfile as sf
 from torch.autograd import Variable
 from torch.nn import Parameter
 from .text_decoder import TextDecoder as Decoder
@@ -18,7 +17,7 @@ class TextVAE(nn.Module):
 
         self.embeddings = nn.Embedding(self.params.vocab_size, self.params.char_embed_size)
         self.embeddings.weight = Parameter(
-            t.Tensor(self.params.vocab_size, self.params.char_embed_size).uniform_(-1, 1)
+            t.Tensor(self.params.vocab_size, self.params.char_embed_size).uniform_(-0.1, 0.1)
         )
 
         self.encoder = Encoder(self.params)
@@ -44,20 +43,18 @@ class TextVAE(nn.Module):
         """
 
         assert z is None and fold(lambda acc, par: acc and par is not None, [encoder_input, decoder_input], True) \
-            or (z is not None and decoder_input is not None), \
+               or (z is not None and decoder_input is not None), \
             "Invalid input. If z is None then encoder and decoder inputs should be passed as arguments"
+
+        mu = None
+        logvar = None
 
         if z is None:
             ''' Get context from encoder and sample z ~ N(mu, std)
             '''
             [batch_size, _] = encoder_input.size()
 
-            encoder_input = self.embeddings(encoder_input)
-
-            context = self.encoder(encoder_input)
-
-            mu = self.context_to_mu(context)
-            logvar = self.context_to_logvar(context)
+            mu, logvar = self.encode(encoder_input)
             std = t.exp(0.5 * logvar)
 
             z = Variable(t.randn([batch_size, self.params.latent_variable_size]))
@@ -74,9 +71,23 @@ class TextVAE(nn.Module):
         decoder_input = F.dropout(decoder_input, drop_prob, training=z is None)
         out, final_state = self.decoder(decoder_input, z, initial_state)
 
-        return out, final_state, kld
+        return out, final_state, kld, mu, logvar
 
-    def sample(self, batch_loader, seq_len, z, use_cuda, path):
+    def encode(self, input):
+        input = self.embeddings(input)
+        context = self.encoder(input)
+
+        mu = self.context_to_mu(context)
+        logvar = self.context_to_logvar(context)
+
+        return mu, logvar
+
+    def sample(self, batch_loader, seq_len, use_cuda, z=None):
+
+        if z is None:
+            z = Variable(t.randn(1, self.params.latent_variable_size))
+            if use_cuda:
+                z = z.cuda()
 
         x = batch_loader.text_go_input(1, use_cuda)
         state = None
@@ -84,7 +95,7 @@ class TextVAE(nn.Module):
         result = []
 
         for i in range(seq_len):
-            x, state, _ = self(0., None, x, z, state)
+            x, state, _, _, _ = self(0., None, x, z, state)
             x = x.squeeze()
             x = F.softmax(x)
 
@@ -102,7 +113,4 @@ class TextVAE(nn.Module):
             if use_cuda:
                 x = x.cuda()
 
-        result = ''.join(result)
-
-        with open("{}.txt".format(path), "w") as f:
-            f.write(result)
+        return ''.join(result)

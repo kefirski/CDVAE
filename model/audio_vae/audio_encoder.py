@@ -14,9 +14,9 @@ class AudioEncoder(nn.Module):
                           hidden_size=self.params.audio_encoder_size,
                           num_layers=self.params.audio_encoder_num_layers,
                           batch_first=True,
-                          bidirectional=True)
+                          bidirectional=False)
 
-        self.highway = Highway(self.params.audio_encoder_size * 2, 4, F.elu)
+        self.highway = Highway(self.params.audio_encoder_size, 4, F.elu)
 
     def forward(self, input):
         """
@@ -26,13 +26,15 @@ class AudioEncoder(nn.Module):
 
         [batch_size, _, _] = input.size()
 
+        print(input.size())
+
         ''' 
         Unfold rnn with zero initial state and get its final state from the last layer
         '''
         _, final_state = self.rnn(input)
 
-        final_state = final_state\
-            .view(self.params.audio_encoder_num_layers, 2, batch_size, self.params.audio_encoder_size)
+        final_state = final_state \
+            .view(self.params.audio_encoder_num_layers, 1, batch_size, self.params.audio_encoder_size)
         final_state = final_state[-1]
         final_state = t.cat(final_state, 1)
 

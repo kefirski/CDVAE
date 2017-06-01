@@ -7,11 +7,10 @@ experimentation.py
 *.DS_Store
 *.so
 
-images/
-samplings/
 word_embeddings.npy
 test/
 data/
+samplings/
 
 # Distribution / packaging
 .Python

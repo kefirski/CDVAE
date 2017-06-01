@@ -17,8 +17,8 @@ class AudioVAE(nn.Module):
 
         self.encoder = Encoder(self.params)
 
-        self.context_to_mu = nn.Linear(self.params.audio_encoder_size * 2, self.params.latent_variable_size)
-        self.context_to_logvar = nn.Linear(self.params.audio_encoder_size * 2, self.params.latent_variable_size)
+        self.context_to_mu = nn.Linear(self.params.audio_encoder_size, self.params.latent_variable_size)
+        self.context_to_logvar = nn.Linear(self.params.audio_encoder_size, self.params.latent_variable_size)
 
         self.decoder = Decoder(self.params)
 
@@ -36,22 +36,19 @@ class AudioVAE(nn.Module):
                     with shape of [batch_size, seq_len + 1]
                  final rnn state with shape of [num_layers, batch_size, decoder_rnn_size]
         """
-
         assert z is None and fold(lambda acc, par: acc and par is not None, [encoder_input, decoder_input], True) \
-            or (z is not None and decoder_input is not None), \
+               or (z is not None and decoder_input is not None), \
             "Invalid input. If z is None then encoder and decoder inputs should be passed as arguments"
+
+        mu = None
+        logvar = None
 
         if z is None:
             ''' Get context from encoder and sample z ~ N(mu, std)
             '''
             [batch_size, _] = encoder_input.size()
 
-            encoder_input = encoder_input.unsqueeze(2)
-
-            context = self.encoder(encoder_input)
-
-            mu = self.context_to_mu(context)
-            logvar = self.context_to_logvar(context)
+            mu, logvar = self.encode(encoder_input)
             std = t.exp(0.5 * logvar)
 
             z = Variable(t.randn([batch_size, self.params.latent_variable_size]))
@@ -68,9 +65,23 @@ class AudioVAE(nn.Module):
         decoder_input = F.dropout(decoder_input, drop_prob, training=z is None)
         out, final_state = self.decoder(decoder_input, z, initial_state)
 
-        return out.squeeze(2), final_state, kld
+        return out.squeeze(2), final_state, kld, mu, logvar
 
-    def sample(self, batch_loader, seq_len, z, use_cuda, path):
+    def encode(self, input):
+        input = input.unsqueeze(2)
+        context = self.encoder(input)
+
+        mu = self.context_to_mu(context)
+        logvar = self.context_to_logvar(context)
+
+        return mu, logvar
+
+    def sample(self, batch_loader, seq_len, use_cuda, z=None):
+
+        if z is None:
+            z = Variable(t.randn(1, self.params.latent_variable_size))
+            if use_cuda:
+                z = z.cuda()
 
         x = batch_loader.audio_go_input(1, use_cuda)
         state = None
@@ -78,8 +89,7 @@ class AudioVAE(nn.Module):
         result = []
 
         for i in range(seq_len):
-            print(i)
-            x, state, _ = self(0., None, x, z, state)
+            x, state, _, _, _ = self(0., None, x, z, state)
 
             x = x.squeeze()
             x = x.data.cpu().numpy()[0]
@@ -94,6 +104,4 @@ class AudioVAE(nn.Module):
             if use_cuda:
                 x = x.cuda()
 
-        result = np.array(result)
-
-        sf.write(path + '.flac', result, 16000)
+        return np.array(result)

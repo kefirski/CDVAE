@@ -10,7 +10,7 @@ class TextEncoder(nn.Module):
 
         self.params = params
 
-        self.rnn = nn.GRU(input_size=self.params.char_embed_size,
+        self.rnn = nn.LSTM(input_size=self.params.char_embed_size,
                           hidden_size=self.params.text_encoder_size,
                           num_layers=self.params.text_encoder_num_layers,
                           batch_first=True,
@@ -29,8 +29,7 @@ class TextEncoder(nn.Module):
         ''' 
         Unfold rnn with zero initial state and get its final state from the last layer
         '''
-        _, final_state = self.rnn(input)
-
+        _, (_ , final_state) = self.rnn(input)
         final_state = final_state\
             .view(self.params.text_encoder_num_layers, 2, batch_size, self.params.text_encoder_size)
         final_state = final_state[-1]
