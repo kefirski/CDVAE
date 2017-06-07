@@ -26,8 +26,6 @@ class AudioEncoder(nn.Module):
 
         [batch_size, _, _] = input.size()
 
-        print(input.size())
-
         ''' 
         Unfold rnn with zero initial state and get its final state from the last layer
         '''

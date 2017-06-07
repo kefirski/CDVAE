@@ -17,9 +17,9 @@ if __name__ == "__main__":
     path_prefix = './data/'
 
     parser = argparse.ArgumentParser(description='CDVAE')
-    parser.add_argument('--num-iterations', type=int, default=250000, metavar='NI',
-                        help='num iterations (default: 250000)')
-    parser.add_argument('--batch-size', type=int, default=8, metavar='BS',
+    parser.add_argument('--num-iterations', type=int, default=450000, metavar='NI',
+                        help='num iterations (default: 450000)')
+    parser.add_argument('--batch-size', type=int, default=1, metavar='BS',
                         help='batch size (default: 10)')
     parser.add_argument('--use-cuda', type=bool, default=False, metavar='CUDA',
                         help='use cuda (default: False)')
@@ -79,4 +79,3 @@ if __name__ == "__main__":
                   loss_audio[2].data.cpu().numpy()[0],
                   loss_audio[3].data.cpu().numpy()[0])
             print('|-----------------------------------------------------------------------|')
-    
