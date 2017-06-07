@@ -2,11 +2,12 @@ from .functions import *
 
 
 class Parameters:
-    def __init__(self, vocab_size):
+    def __init__(self, vocab_size_ru, vocab_size_en):
 
-        self.vocab_size = int(vocab_size)
+        self.vocab_size_ru = int(vocab_size_ru)
+        self.vocab_size_en = int(vocab_size_en)
 
-        self.char_embed_size = 19
+        self.embed_size = 350
 
         self.text_encoder_size = 40
         self.text_encoder_num_layers = 2

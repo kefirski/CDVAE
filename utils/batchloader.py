@@ -20,7 +20,7 @@ class BatchLoader:
 
         self.data_path = data_path
 
-        self.text_files = [self.data_path + 'ru_t.txt', self.data_path + 'en_t.txt']
+        self.text_files = [self.data_path + 'ru.txt', self.data_path + 'en.txt']
 
         '''
         go_token (stop_token) uses to mark start (end) of the sequence while decoding
@@ -252,6 +252,21 @@ class BatchLoader:
             result = [var.cuda() for var in result]
 
         return tuple(result)
+
+    def next_embedding_seq(self, batch_size, lang):
+        """
+        :param batch_size: batch size
+        :param lang: which vocabulary to use
+        :return: Arrays of input and target for embedding learning
+        """
+
+        lang = 0 if lang == 'ru' else 1
+        vocab_size = [self.vocab_size_ru, self.vocab_size_en][lang]
+
+        input = np.array(np.random.randint(vocab_size, size=batch_size))
+        target = np.array(np.random.randint(vocab_size, size=batch_size))
+
+        return input, target
 
     def sample_word(self, distribution, lang: str):
         """
