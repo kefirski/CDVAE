@@ -7,7 +7,7 @@ class Parameters:
         self.vocab_size_ru = int(vocab_size_ru)
         self.vocab_size_en = int(vocab_size_en)
 
-        self.embed_size = 350
+        self.embed_size = 300
 
         self.text_encoder_size = 40
         self.text_encoder_num_layers = 2

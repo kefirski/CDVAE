@@ -35,17 +35,17 @@ class BatchLoader:
         self.idx_files = [self.preprocessings_path + 'vocab_ru.pkl',
                           self.preprocessings_path + 'vocab_en.pkl']
 
-        self.co_occurence_files = [self.preprocessings_path + 'co_oc_ru.npy',
-                                   self.preprocessings_path + 'co_oc_en.npy']
-
         self.tensor_files = [self.preprocessings_path + 'train_tensor.npy',
                              self.preprocessings_path + 'valid_tensor.npy']
 
+        self.embedding_files = [self.preprocessings_path + 'embedd_ru.npy',
+                                self.preprocessings_path + 'embedd_en.npy']
+
         idx_files_exist = all([os.path.exists(file) for file in self.idx_files])
         tensor_files_exist = all([os.path.exists(file) for file in self.tensor_files])
-        co_occurences_exist = all([os.path.exists(file) for file in self.co_occurence_files])
+        embedd_files_exist = all([os.path.exists(file) for file in self.embedding_files])
 
-        if idx_files_exist and tensor_files_exist and co_occurences_exist and not force_preprocessing:
+        if idx_files_exist and tensor_files_exist and embedd_files_exist and not force_preprocessing:
 
             print('preprocessed data loading have started')
 
@@ -119,7 +119,7 @@ class BatchLoader:
         if not os.path.exists(self.preprocessings_path):
             os.makedirs(self.preprocessings_path)
 
-        data = [open(path, 'r').read() for path in self.text_files]
+        data = [open(path, 'r', encoding='utf-8').read() for path in self.text_files]
         data = [[BatchLoader.clean_string(line).split() for line in domain.split('\n')[:-1]] for domain in data]
 
         self.vocab_size_ru, self.idx_to_word_ru, self.word_to_idx_ru = self.build_vocab(
@@ -133,17 +133,18 @@ class BatchLoader:
         data[1] = [[self.word_to_idx_en[word] for word in line] for line in data[1]]
         data = np.array(data)
 
-        self.valid_data, self.train_data = [[domain[:3] for domain in data], [domain[3:] for domain in data]]
+        self.valid_data, self.train_data = [[domain[:800] for domain in data], [domain[800:] for domain in data]]
         self.valid_data = np.array(self.valid_data)
         self.train_data = np.array(self.train_data)
 
         self.data_len = [len(self.train_data[0]), len(self.valid_data[0])]
 
-        self.co_occurence_ru = BatchLoader.co_occurence_matrix(data[0], self.vocab_size_ru, 6)
-        self.co_occurence_en = BatchLoader.co_occurence_matrix(data[1], self.vocab_size_en, 6)
+        self.embedding_pairs_ru, self.embedding_pairs_en = (np.array([pair for line in self.train_data[i]
+                                                                      for pair in BatchLoader.bag_window(line)])
+                                                            for i in range(2))
 
-        for i, path in enumerate(self.co_occurence_files):
-            np.save(path, [self.co_occurence_ru, self.co_occurence_en][i])
+        for i, path in enumerate(self.embedding_files):
+            np.save(path, [self.embedding_pairs_ru, self.embedding_pairs_en][i])
 
         for i, path in enumerate(self.tensor_files):
             np.save(path, [self.train_data, self.valid_data][i])
@@ -165,32 +166,21 @@ class BatchLoader:
 
         self.data_len = [len(self.train_data[0]), len(self.valid_data[0])]
 
-        self.co_occurence_ru, self.co_occurence_en = (np.load(path) for path in self.co_occurence_files)
+        self.embedding_pairs_ru, self.embedding_pairs_en = (np.load(path) for path in self.embedding_files)
 
     @staticmethod
-    def co_occurence_matrix(data, vocab_size, window_size=5):
-        """
-        :param data: An matrix with shape of [num_lines, seq_len_i] filled with words indexes
-        :param vocab_size: An int representing size of vocabulary
-        :param window_size: An int represinting window size which will be unrolled over whole lines in data
-        :return: An matrix X with shape of [vocab_size, vocab_size]
-                    | X_ij is equal to number of occurences of word j in the context of word i
-        """
+    def bag_window(seq, window=5):
 
-        '''
-        In order to construct co occurence matrix it is necessary to unroll whole data with window 
-        and evaluate number of entrences of word j in the context of word i
-        '''
+        assert window > 1 and isinstance(window, int)
 
-        co_occurence = np.zeros((vocab_size, vocab_size), dtype=np.int)
+        context = []
+        seq_len = len(seq)
+        num_slices = seq_len - window + 1
 
-        for line in data:
-            for index, i in enumerate(line):
-                for j in range(index - window_size, index + window_size + 1):
-                    if 0 <= j < len(line) and j != index and line[j] != i:
-                        co_occurence[i, line[j]] += 1
+        for i in range(num_slices):
+            context += [seq[i:i + window]]
 
-        return co_occurence
+        return [[value] + c[:i] + c[i + 1:] for c in context for i, value in enumerate(c)]
 
     def next_batch(self, batch_size, target: str, use_cuda=False):
         """
@@ -260,13 +250,18 @@ class BatchLoader:
         :return: Arrays of input and target for embedding learning
         """
 
+        """
+        Sample indexes in order to choose random pairs of words and contexts 
+        """
+
         lang = 0 if lang == 'ru' else 1
-        vocab_size = [self.vocab_size_ru, self.vocab_size_en][lang]
+        data = [self.embedding_pairs_ru, self.embedding_pairs_en][lang]
 
-        input = np.array(np.random.randint(vocab_size, size=batch_size))
-        target = np.array(np.random.randint(vocab_size, size=batch_size))
+        indexes = np.array(np.random.randint(len(data), size=batch_size))
 
-        return input, target
+        result = np.array([data[i] for i in indexes])
+
+        return result[:, 0], result[:, 1:]
 
     def sample_word(self, distribution, lang: str):
         """
