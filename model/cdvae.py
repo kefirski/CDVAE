@@ -60,7 +60,7 @@ class CDVAE(nn.Module):
         loss_text = 140 * rec_loss_text + kld_coef(i) * kld_text + cd_latent_loss_text
         loss_audio = 2000 * rec_loss_audio + kld_coef(i) * kld_audio + cd_latent_loss_audio
 
-        return (loss_text, rec_loss_text, kld_text, cd_latent_loss_text),\
+        return (loss_text, rec_loss_text, kld_text, cd_latent_loss_text), \
                (loss_audio, rec_loss_audio, kld_audio, cd_latent_loss_audio)
 
     @staticmethod

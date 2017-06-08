@@ -3,7 +3,6 @@ from .functions import *
 
 class Parameters:
     def __init__(self, vocab_size_ru, vocab_size_en):
-
         self.vocab_size_ru = int(vocab_size_ru)
         self.vocab_size_en = int(vocab_size_en)
 
@@ -20,5 +19,3 @@ class Parameters:
         self.audio_decoder_num_layers = 3
 
         self.latent_variable_size = 90
-
-

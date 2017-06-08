@@ -17,4 +17,4 @@ def parameters_allocation_check(module):
 
 def kld_coef(i):
     import math
-    return (math.tanh((i - 3000)/1000) + 1)/2
+    return (math.tanh((i - 3000) / 1000) + 1) / 2

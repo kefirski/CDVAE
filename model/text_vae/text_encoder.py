@@ -11,10 +11,10 @@ class TextEncoder(nn.Module):
         self.params = params
 
         self.rnn = nn.LSTM(input_size=self.params.char_embed_size,
-                          hidden_size=self.params.text_encoder_size,
-                          num_layers=self.params.text_encoder_num_layers,
-                          batch_first=True,
-                          bidirectional=True)
+                           hidden_size=self.params.text_encoder_size,
+                           num_layers=self.params.text_encoder_num_layers,
+                           batch_first=True,
+                           bidirectional=True)
 
         self.highway = Highway(self.params.text_encoder_size * 2, 3, F.elu)
 
@@ -29,8 +29,8 @@ class TextEncoder(nn.Module):
         ''' 
         Unfold rnn with zero initial state and get its final state from the last layer
         '''
-        _, (_ , final_state) = self.rnn(input)
-        final_state = final_state\
+        _, (_, final_state) = self.rnn(input)
+        final_state = final_state \
             .view(self.params.text_encoder_num_layers, 2, batch_size, self.params.text_encoder_size)
         final_state = final_state[-1]
         final_state = t.cat(final_state, 1)

@@ -11,9 +11,9 @@ class TextDecoder(nn.Module):
         self.params = params
 
         self.rnn = nn.LSTM(input_size=self.params.char_embed_size + self.params.latent_variable_size,
-                          hidden_size=self.params.text_decoder_size,
-                          num_layers=self.params.text_decoder_num_layers,
-                          batch_first=True)
+                           hidden_size=self.params.text_decoder_size,
+                           num_layers=self.params.text_decoder_num_layers,
+                           batch_first=True)
 
         self.highway = Highway(self.params.text_decoder_size, 3, F.relu)
         self.fc = nn.Linear(self.params.text_decoder_size, self.params.vocab_size)

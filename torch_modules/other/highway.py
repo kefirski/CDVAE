@@ -4,7 +4,6 @@ import torch.nn.functional as F
 
 class Highway(nn.Module):
     def __init__(self, size, num_layers, f):
-
         super(Highway, self).__init__()
 
         self.num_layers = num_layers

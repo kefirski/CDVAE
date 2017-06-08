@@ -1,7 +1,6 @@
 import os
 import re
 import numpy as np
-import soundfile as sf
 import torch as t
 import collections
 from torch.autograd import Variable
@@ -18,9 +17,11 @@ class BatchLoader:
         assert isinstance(data_path, str), \
             'Invalid data_path_prefix type. Required {}, but {} found'.format(str, type(data_path))
 
+        self.split = 3
+
         self.data_path = data_path
 
-        self.text_files = [self.data_path + 'ru.txt', self.data_path + 'en.txt']
+        self.text_files = [self.data_path + 'ru_t.txt', self.data_path + 'en_t.txt']
 
         '''
         go_token (stop_token) uses to mark start (end) of the sequence while decoding
@@ -38,14 +39,10 @@ class BatchLoader:
         self.tensor_files = [self.preprocessings_path + 'train_tensor.npy',
                              self.preprocessings_path + 'valid_tensor.npy']
 
-        self.embedding_files = [self.preprocessings_path + 'embedd_ru.npy',
-                                self.preprocessings_path + 'embedd_en.npy']
-
         idx_files_exist = all([os.path.exists(file) for file in self.idx_files])
         tensor_files_exist = all([os.path.exists(file) for file in self.tensor_files])
-        embedd_files_exist = all([os.path.exists(file) for file in self.embedding_files])
 
-        if idx_files_exist and tensor_files_exist and embedd_files_exist and not force_preprocessing:
+        if idx_files_exist and tensor_files_exist and not force_preprocessing:
 
             print('preprocessed data loading have started')
 
@@ -133,18 +130,12 @@ class BatchLoader:
         data[1] = [[self.word_to_idx_en[word] for word in line] for line in data[1]]
         data = np.array(data)
 
-        self.valid_data, self.train_data = [[domain[:800] for domain in data], [domain[800:] for domain in data]]
+        self.valid_data, self.train_data = [[domain[:self.split] for domain in data],
+                                            [domain[self.split:] for domain in data]]
         self.valid_data = np.array(self.valid_data)
         self.train_data = np.array(self.train_data)
 
         self.data_len = [len(self.train_data[0]), len(self.valid_data[0])]
-
-        self.embedding_pairs_ru, self.embedding_pairs_en = (np.array([pair for line in self.train_data[i]
-                                                                      for pair in BatchLoader.bag_window(line)])
-                                                            for i in range(2))
-
-        for i, path in enumerate(self.embedding_files):
-            np.save(path, [self.embedding_pairs_ru, self.embedding_pairs_en][i])
 
         for i, path in enumerate(self.tensor_files):
             np.save(path, [self.train_data, self.valid_data][i])
@@ -163,10 +154,7 @@ class BatchLoader:
                                                     for idx in [self.idx_to_word_ru, self.idx_to_word_en])
 
         self.train_data, self.valid_data = (np.load(path) for path in self.tensor_files)
-
         self.data_len = [len(self.train_data[0]), len(self.valid_data[0])]
-
-        self.embedding_pairs_ru, self.embedding_pairs_en = (np.load(path) for path in self.embedding_files)
 
     @staticmethod
     def bag_window(seq, window=5):
@@ -203,6 +191,40 @@ class BatchLoader:
         encoder_input_ru, encoder_input_en = ([np.copy(data[i, idx]).tolist() for idx in indexes] for i in range(2))
 
         return self._wrap_tensor(encoder_input_ru, 'ru', use_cuda), self._wrap_tensor(encoder_input_en, 'en', use_cuda)
+
+    def next_embedding_batch(self, batch_size, lang):
+        """
+        :param batch_size: batch size
+        :param lang: which vocabulary to use
+        :return: Arrays of input and target for embedding learning
+        """
+
+        """
+        Sample indexes in order to choose random pairs of words and contexts 
+        """
+
+        lang = 0 if lang == 'ru' else 1
+        data_len = len(self.train_data[lang])
+
+        result = []
+
+        while len(result) != batch_size:
+            index = np.array(np.random.randint(data_len, size=1))
+            line = self.train_data[lang, index[0]]
+
+            pairs = BatchLoader.bag_window(line)
+
+            neccesary_to_add = batch_size - len(result)
+
+            if len(pairs) >= neccesary_to_add:
+                index = np.array(np.random.randint(len(pairs), size=neccesary_to_add))
+                pairs = [pairs[i] for i in index]
+
+            result += pairs
+
+        result = np.array(result)
+
+        return result[:, 0], result[:, 1:]
 
     def _wrap_tensor(self, encoder_input, lang: str, use_cuda: bool):
         """
@@ -242,26 +264,6 @@ class BatchLoader:
             result = [var.cuda() for var in result]
 
         return tuple(result)
-
-    def next_embedding_seq(self, batch_size, lang):
-        """
-        :param batch_size: batch size
-        :param lang: which vocabulary to use
-        :return: Arrays of input and target for embedding learning
-        """
-
-        """
-        Sample indexes in order to choose random pairs of words and contexts 
-        """
-
-        lang = 0 if lang == 'ru' else 1
-        data = [self.embedding_pairs_ru, self.embedding_pairs_en][lang]
-
-        indexes = np.array(np.random.randint(len(data), size=batch_size))
-
-        result = np.array([data[i] for i in indexes])
-
-        return result[:, 0], result[:, 1:]
 
     def sample_word(self, distribution, lang: str):
         """
