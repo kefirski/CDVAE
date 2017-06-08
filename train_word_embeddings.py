@@ -14,8 +14,8 @@ if __name__ == '__main__':
                         help='num iterations (default: 25000000)')
     parser.add_argument('--batch-size', type=int, default=45, metavar='BS',
                         help='batch size (default: 45)')
-    parser.add_argument('--num-sample', type=int, default=6, metavar='NS',
-                        help='num sample (default: 6)')
+    parser.add_argument('--num-sample', type=int, default=4, metavar='NS',
+                        help='num sample (default: 4)')
     parser.add_argument('--use-cuda', type=bool, default=False, metavar='CUDA',
                         help='use cuda (default: False)')
     parser.add_argument('--lang', type=str, default='ru', metavar='L',

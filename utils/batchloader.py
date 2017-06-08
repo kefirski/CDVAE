@@ -17,11 +17,11 @@ class BatchLoader:
         assert isinstance(data_path, str), \
             'Invalid data_path_prefix type. Required {}, but {} found'.format(str, type(data_path))
 
-        self.split = 3
+        self.split = 500
 
         self.data_path = data_path
 
-        self.text_files = [self.data_path + 'ru_t.txt', self.data_path + 'en_t.txt']
+        self.text_files = [self.data_path + 'ru.txt', self.data_path + 'en.txt']
 
         '''
         go_token (stop_token) uses to mark start (end) of the sequence while decoding
