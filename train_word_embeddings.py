@@ -6,14 +6,16 @@ from torch.optim import SGD
 from utils.batchloader import BatchLoader
 from utils.parameters import Parameters
 from torch_modules.losses.neg import NEG_loss
+import time
+
 
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='word2vec')
     parser.add_argument('--num-iterations', type=int, default=25000000, metavar='NI',
                         help='num iterations (default: 25000000)')
-    parser.add_argument('--batch-size', type=int, default=45, metavar='BS',
-                        help='batch size (default: 45)')
+    parser.add_argument('--batch-size', type=int, default=20, metavar='BS',
+                        help='batch size (default: 20)')
     parser.add_argument('--num-sample', type=int, default=4, metavar='NS',
                         help='num sample (default: 4)')
     parser.add_argument('--use-cuda', type=bool, default=False, metavar='CUDA',

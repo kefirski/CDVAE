@@ -17,7 +17,16 @@ class BatchLoader:
         assert isinstance(data_path, str), \
             'Invalid data_path_prefix type. Required {}, but {} found'.format(str, type(data_path))
 
-        self.split = 500
+        self.split = 400
+
+        '''
+        In order to reduce number of tokens 
+        it is necessary to drop these that uncommon in the corpus
+        
+        Every token that frequency in the corpus is below threshold should be replaced with unk token
+        '''
+        self.unk_threshold = 0.000025
+        self.line_threshold = 0.19
 
         self.data_path = data_path
 
@@ -30,6 +39,7 @@ class BatchLoader:
         self.go_token = '>'
         self.pad_token = '_'
         self.stop_token = '<'
+        self.unk_token = '<unk>'
 
         self.preprocessings_path = self.data_path + 'preprocessed_data/'
 
@@ -74,12 +84,17 @@ class BatchLoader:
 
         word_counts = collections.Counter(sentences)
 
-        idx_to_word = [x[0] for x in word_counts.most_common()]
-        idx_to_word = list(sorted(idx_to_word)) + [self.pad_token, self.go_token, self.stop_token]
+        mc = word_counts.most_common()
+        sentence_len = len(sentences)
+
+        """
+        Take only those tokens that frequency is abowe threshold
+        """
+        idx_to_word = [x for (x, n) in mc if n / sentence_len > self.unk_threshold]
+        idx_to_word = list(sorted(idx_to_word)) + [self.pad_token, self.go_token, self.stop_token, self.unk_token]
+        words_vocab_size = len(idx_to_word)
 
         word_to_idx = {x: i for i, x in enumerate(idx_to_word)}
-
-        words_vocab_size = len(idx_to_word)
 
         return words_vocab_size, idx_to_word, word_to_idx
 
@@ -126,9 +141,31 @@ class BatchLoader:
             [word for line in data[1] for word in line]
         )
 
-        data[0] = [[self.word_to_idx_ru[word] for word in line] for line in data[0]]
-        data[1] = [[self.word_to_idx_en[word] for word in line] for line in data[1]]
+        data[0] = [[self.word_to_idx_ru[word] if word in self.word_to_idx_ru else self.word_to_idx_ru[self.unk_token]
+                    for word in line] for line in data[0]]
+        data[1] = [[self.word_to_idx_en[word] if word in self.word_to_idx_en else self.word_to_idx_en[self.unk_token]
+                    for word in line] for line in data[1]]
+
         data = np.array(data)
+        i = 0
+
+        while i < len(data[0]):
+            print((len(data[0]), i))
+
+            appropriate_ru = len([idx for idx in data[0][i] if self.idx_to_word_ru[idx] == self.unk_token]) / len(
+                data[0][i]) < self.line_threshold
+            appropriate_en = len([idx for idx in data[1][i] if self.idx_to_word_en[idx] == self.unk_token]) / len(
+                data[1][i]) < self.line_threshold
+
+            if not (appropriate_ru and appropriate_en):
+                data = np.delete(data, i, 1)
+                i -= 1
+
+            i += 1
+
+        print(self.vocab_size_ru)
+        print(self.vocab_size_en)
+        print(len(data[0]))
 
         self.valid_data, self.train_data = [[domain[:self.split] for domain in data],
                                             [domain[self.split:] for domain in data]]
