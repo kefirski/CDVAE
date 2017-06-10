@@ -3,29 +3,34 @@ import torch as t
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
-from torch.nn import Parameter
-from .text_decoder import TextDecoder as Decoder
-from .text_encoder import TextEncoder as Encoder
+from .encoder import Encoder
+from .decoder import Decoder
+from torch_modules.other.embeddings import EmbeddingLockup
 from utils.functions import fold
 
 
-class TextVAE(nn.Module):
-    def __init__(self, params):
-        super(TextVAE, self).__init__()
+class VAE(nn.Module):
+    def __init__(self, encoder_size, encoder_num_layers,
+                 decoder_size, decoder_num_layers,
+                 latent_size, vocab_size, embed_size,
+                 lang: str):
+        super(VAE, self).__init__()
 
-        self.params = params
+        assert lang in ['ru', 'en']
 
-        self.embeddings = nn.Embedding(self.params.vocab_size, self.params.char_embed_size)
-        self.embeddings.weight = Parameter(
-            t.Tensor(self.params.vocab_size, self.params.char_embed_size).uniform_(-0.1, 0.1)
-        )
+        self.latent_size = latent_size
+        self.vocab_size = vocab_size
+        self.embed_size = embed_size
+        self.lang = lang
 
-        self.encoder = Encoder(self.params)
+        self.embed = EmbeddingLockup(self.vocab_size, self.embed_size, lang, path_prefix='')
 
-        self.context_to_mu = nn.Linear(self.params.text_encoder_size * 2, self.params.latent_variable_size)
-        self.context_to_logvar = nn.Linear(self.params.text_encoder_size * 2, self.params.latent_variable_size)
+        self.encoder = Encoder(encoder_size, encoder_num_layers, self.embed_size)
 
-        self.decoder = Decoder(self.params)
+        self.context_to_mu = nn.Linear(encoder_size * 2, self.latent_size)
+        self.context_to_logvar = nn.Linear(encoder_size * 2, self.latent_size)
+
+        self.decoder = Decoder(self.latent_size, decoder_size, decoder_num_layers, self.embed_size, self.vocab_size)
 
     def forward(self, drop_prob,
                 encoder_input=None,
@@ -35,7 +40,7 @@ class TextVAE(nn.Module):
         :param drop_prob: probability of an element of decoder input to be dropped out
         :param encoder_input: An tensor with shape of [batch_size, seq_len] of Long type
         :param decoder_input: An tensor with shape of [batch_size, seq_len + 1] of Long type
-        :param z: context if sampling is performing
+        :param z: latent variable if sampling is performing
         :param initial_state: initial state of decoder rnn if sampling is performing
         :return: logits of sequence distribution probabilities
                     with shape of [batch_size, seq_len + 1, vocab_size]
@@ -57,7 +62,7 @@ class TextVAE(nn.Module):
             mu, logvar = self.encode(encoder_input)
             std = t.exp(0.5 * logvar)
 
-            z = Variable(t.randn([batch_size, self.params.latent_variable_size]))
+            z = Variable(t.randn([batch_size, self.latent_size]))
             if encoder_input.is_cuda:
                 z = z.cuda()
 
@@ -67,14 +72,15 @@ class TextVAE(nn.Module):
         else:
             kld = None
 
-        decoder_input = self.embeddings(decoder_input)
+        decoder_input = self.embed(decoder_input)
         decoder_input = F.dropout(decoder_input, drop_prob, training=z is None)
         out, final_state = self.decoder(decoder_input, z, initial_state)
 
         return out, final_state, kld, mu, logvar
 
     def encode(self, input):
-        input = self.embeddings(input)
+        input = self.embed(input)
+        print(input.size())
         context = self.encoder(input)
 
         mu = self.context_to_mu(context)
@@ -85,14 +91,16 @@ class TextVAE(nn.Module):
     def sample(self, batch_loader, seq_len, use_cuda, z=None):
 
         if z is None:
-            z = Variable(t.randn(1, self.params.latent_variable_size))
+            z = Variable(t.randn(1, self.latent_size))
             if use_cuda:
                 z = z.cuda()
 
-        x = batch_loader.text_go_input(1, use_cuda)
+        x = batch_loader.go_input(1, self.lang, use_cuda)
         state = None
 
         result = []
+
+        vocab = [batch_loader.idx_to_word_ru, batch_loader.idx_to_word_ru][0 if lang == 'ru' else 1]
 
         for i in range(seq_len):
             x, state, _, _, _ = self(0., None, x, z, state)
@@ -100,10 +108,10 @@ class TextVAE(nn.Module):
             x = F.softmax(x)
 
             x = x.data.cpu().numpy()
-            idx = batch_loader.sample_character_from_distribution(x)
-            x = batch_loader.idx_to_char[idx]
+            idx = batch_loader.sample_word(x, lang)
+            x = vocab[idx]
 
-            if x == batch_loader.text_stop_token:
+            if x == batch_loader.stop_token:
                 break
 
             result += [x]
@@ -113,4 +121,4 @@ class TextVAE(nn.Module):
             if use_cuda:
                 x = x.cuda()
 
-        return ''.join(result)
+        return ' '.join(result)

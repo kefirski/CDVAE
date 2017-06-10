@@ -20,9 +20,11 @@ if __name__ == '__main__':
                         help='num sample (default: 4)')
     parser.add_argument('--use-cuda', type=bool, default=False, metavar='CUDA',
                         help='use cuda (default: False)')
-    parser.add_argument('--lang', type=str, default='ru', metavar='L',
+    parser.add_argument('--lang', type=str, default='en', metavar='L',
                         help='lang (default: ru)')
     args = parser.parse_args()
+
+    assert args.lang in ['ru', 'en'], 'Invalid --lang parameter. Must be in ["ru", "en"]'
 
     batch_loader = BatchLoader()
     params = Parameters(batch_loader.vocab_size_ru,
@@ -58,4 +60,4 @@ if __name__ == '__main__':
             print('iteration = {}, loss = {}'.format(iteration, out))
 
     word_embeddings = neg_loss.input_embeddings()
-    np.save('data/preprocessed_data/word_embeddings.npy', word_embeddings)
+    np.save('data/preprocessed_data/word_embeddings_{}.npy'.format(args.lang), word_embeddings)

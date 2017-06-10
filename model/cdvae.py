@@ -6,7 +6,7 @@ import soundfile as sf
 from torch.autograd import Variable
 from torch.nn import Parameter
 from utils.functions import fold, kld_coef
-from .text_vae.text_vae import TextVAE
+from .vae.vae import VAE
 from .audio_vae.audio_vae import AudioVAE
 
 
@@ -16,7 +16,7 @@ class CDVAE(nn.Module):
 
         self.params = params
 
-        self.text_vae = TextVAE(params)
+        self.text_vae = VAE(params)
         self.audio_vae = AudioVAE(params)
 
     def forward(self, text_drop_prob, audio_drop_prob,

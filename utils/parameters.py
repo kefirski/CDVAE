@@ -6,16 +6,12 @@ class Parameters:
         self.vocab_size_ru = int(vocab_size_ru)
         self.vocab_size_en = int(vocab_size_en)
 
-        self.embed_size = 300
+        self.embed_size = 140
 
-        self.text_encoder_size = 40
-        self.text_encoder_num_layers = 2
-        self.text_decoder_size = 40
-        self.text_decoder_num_layers = 2
+        self.encoder_size = 80
+        self.encoder_num_layers = 3
 
-        self.audio_encoder_size = 6
-        self.audio_encoder_num_layers = 3
-        self.audio_decoder_size = 6
-        self.audio_decoder_num_layers = 3
+        self.latent_variable_size = 35
 
-        self.latent_variable_size = 90
+        self.decoder_size = 100
+        self.decoder_num_layers = 3

@@ -17,7 +17,7 @@ class BatchLoader:
         assert isinstance(data_path, str), \
             'Invalid data_path_prefix type. Required {}, but {} found'.format(str, type(data_path))
 
-        self.split = 400
+        self.split = 3
 
         '''
         In order to reduce number of tokens 
@@ -25,12 +25,12 @@ class BatchLoader:
         
         Every token that frequency in the corpus is below threshold should be replaced with unk token
         '''
-        self.unk_threshold = 0.000025
-        self.line_threshold = 0.19
+        self.unk_threshold = 0.000004
+        self.line_threshold = 0.16
 
         self.data_path = data_path
 
-        self.text_files = [self.data_path + 'ru.txt', self.data_path + 'en.txt']
+        self.text_files = [self.data_path + 'ru_t.txt', self.data_path + 'en_t.txt']
 
         '''
         go_token (stop_token) uses to mark start (end) of the sequence while decoding
@@ -149,8 +149,12 @@ class BatchLoader:
         data = np.array(data)
         i = 0
 
+        """
+        Since after the replacment of tokens that frequency is below the threshold 
+        some lines may contain too many of <unk> tokens
+        it is necessary to drop en-ru pairs where frequency of them is too hight
+        """
         while i < len(data[0]):
-            print((len(data[0]), i))
 
             appropriate_ru = len([idx for idx in data[0][i] if self.idx_to_word_ru[idx] == self.unk_token]) / len(
                 data[0][i]) < self.line_threshold
@@ -159,13 +163,13 @@ class BatchLoader:
 
             if not (appropriate_ru and appropriate_en):
                 data = np.delete(data, i, 1)
-                i -= 1
+                continue
 
             i += 1
 
-        print(self.vocab_size_ru)
-        print(self.vocab_size_en)
-        print(len(data[0]))
+        print("preprocessed ru vocab size is equal to {}, en vocab size –– to {}"
+              .format(self.vocab_size_ru, self.vocab_size_en))
+        print("preprocessed data length {}".format(len(data[0])))
 
         self.valid_data, self.train_data = [[domain[:self.split] for domain in data],
                                             [domain[self.split:] for domain in data]]
@@ -301,6 +305,17 @@ class BatchLoader:
             result = [var.cuda() for var in result]
 
         return tuple(result)
+
+    def go_input(self, batch_size, lang, use_cuda):
+
+        lang = 0 if lang == 'ru' else 1
+        vocab = [self.word_to_idx_ru, self.word_to_idx_en][lang]
+
+        go_input = np.array([[vocab[self.go_token]]] * batch_size)
+        go_input = Variable(t.from_numpy(go_input)).long()
+        if use_cuda:
+            go_input = go_input.cuda()
+        return go_input
 
     def sample_word(self, distribution, lang: str):
         """

@@ -26,7 +26,7 @@ class NEG_loss(nn.Module):
         self.out_embed.weight = xavier_normal(self.out_embed.weight)
 
         self.in_embed = nn.Embedding(self.num_classes, self.embed_size)
-        self.in_embed.weight = Pxavier_normal(self.in_embed.weight)
+        self.in_embed.weight = xavier_normal(self.in_embed.weight)
 
         self.weights = weights
         if self.weights is not None:

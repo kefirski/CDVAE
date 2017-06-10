@@ -4,23 +4,26 @@ import torch.nn.functional as F
 from torch_modules.other.highway import Highway
 
 
-class AudioEncoder(nn.Module):
-    def __init__(self, params):
-        super(AudioEncoder, self).__init__()
+class Encoder(nn.Module):
+    def __init__(self, encoder_size, num_layers, embed_size):
+        super(Encoder, self).__init__()
 
-        self.params = params
+        self.encoder_size = encoder_size
+        self.num_layers = num_layers
+        self.embed_size = embed_size
 
-        self.rnn = nn.GRU(input_size=1,
-                          hidden_size=self.params.audio_encoder_size,
-                          num_layers=self.params.audio_encoder_num_layers,
+
+        self.rnn = nn.GRU(input_size=self.embed_size,
+                          hidden_size=self.encoder_size,
+                          num_layers=self.num_layers,
                           batch_first=True,
-                          bidirectional=False)
+                          bidirectional=True)
 
-        self.highway = Highway(self.params.audio_encoder_size, 4, F.elu)
+        self.highway = Highway(self.encoder_size * 2, 3, F.elu)
 
     def forward(self, input):
         """
-        :param input: [batch_size, seq_len, 1] tensor
+        :param input: [batch_size, seq_len, embed_size] tensor
         :return: context of input sentenses with shape of [batch_size, latent_variable_size]
         """
 
@@ -30,9 +33,8 @@ class AudioEncoder(nn.Module):
         Unfold rnn with zero initial state and get its final state from the last layer
         '''
         _, final_state = self.rnn(input)
-
         final_state = final_state \
-            .view(self.params.audio_encoder_num_layers, 1, batch_size, self.params.audio_encoder_size)
+            .view(self.num_layers, 2, batch_size, self.encoder_size)
         final_state = final_state[-1]
         final_state = t.cat(final_state, 1)
 
