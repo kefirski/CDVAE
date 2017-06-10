@@ -121,3 +121,6 @@ class VAE(nn.Module):
                 x = x.cuda()
 
         return ' '.join(result)
+
+    def learnable_parameters(self):
+        return [p for p in self.parameters() if p.requires_grad]

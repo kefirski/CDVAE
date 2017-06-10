@@ -19,7 +19,7 @@ class Decoder(nn.Module):
                           num_layers=self.num_layers,
                           batch_first=True)
 
-        self.highway = Highway(self.decoder_size, 3, F.relu)
+        self.highway = Highway(self.decoder_size, 3, F.elu)
         self.fc = nn.Linear(self.decoder_size, self.vocab_size)
 
     def forward(self, decoder_input, z, initial_state=None):

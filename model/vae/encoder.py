@@ -12,7 +12,6 @@ class Encoder(nn.Module):
         self.num_layers = num_layers
         self.embed_size = embed_size
 
-
         self.rnn = nn.GRU(input_size=self.embed_size,
                           hidden_size=self.encoder_size,
                           num_layers=self.num_layers,
