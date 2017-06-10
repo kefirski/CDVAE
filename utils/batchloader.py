@@ -323,7 +323,7 @@ class BatchLoader:
         :param lang: which vocabulary to use
         :return: An index of sampled from distribution word
         """
-
+        
         lang = 0 if lang == 'ru' else 1
         vocab_size = [self.vocab_size_ru, self.vocab_size_en][lang]
 

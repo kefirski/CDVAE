@@ -80,7 +80,6 @@ class VAE(nn.Module):
 
     def encode(self, input):
         input = self.embed(input)
-        print(input.size())
         context = self.encoder(input)
 
         mu = self.context_to_mu(context)
@@ -100,7 +99,7 @@ class VAE(nn.Module):
 
         result = []
 
-        vocab = [batch_loader.idx_to_word_ru, batch_loader.idx_to_word_ru][0 if lang == 'ru' else 1]
+        vocab = [batch_loader.idx_to_word_ru, batch_loader.idx_to_word_en][0 if self.lang == 'ru' else 1]
 
         for i in range(seq_len):
             x, state, _, _, _ = self(0., None, x, z, state)
@@ -108,7 +107,7 @@ class VAE(nn.Module):
             x = F.softmax(x)
 
             x = x.data.cpu().numpy()
-            idx = batch_loader.sample_word(x, lang)
+            idx = batch_loader.sample_word(x, self.lang)
             x = vocab[idx]
 
             if x == batch_loader.stop_token:
