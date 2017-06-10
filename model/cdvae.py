@@ -2,12 +2,9 @@ import numpy as np
 import torch as t
 import torch.nn as nn
 import torch.nn.functional as F
-import soundfile as sf
 from torch.autograd import Variable
-from torch.nn import Parameter
 from utils.functions import fold, kld_coef
 from .vae.vae import VAE
-from .audio_vae.audio_vae import AudioVAE
 
 
 class CDVAE(nn.Module):
@@ -16,52 +13,58 @@ class CDVAE(nn.Module):
 
         self.params = params
 
-        self.text_vae = VAE(params)
-        self.audio_vae = AudioVAE(params)
+        self.vae_ru = VAE(params.encoder_size, params.encoder_num_layers, params.decoder_size,
+                          params.decoder_num_layers,
+                          params.latent_variable_size, params.vocab_size_ru, params.embed_size, 'ru')
 
-    def forward(self, text_drop_prob, audio_drop_prob,
-                text_encoder_input, audio_encoder_input,
-                text_decoder_input, audio_decoder_input,
-                text_target, audio_target,
+        self.vae_en = VAE(params.encoder_size, params.encoder_num_layers, params.decoder_size,
+                          params.decoder_num_layers,
+                          params.latent_variable_size, params.vocab_size_en, params.embed_size, 'en')
+
+    def forward(self, drop_prob,
+                encoder_input_ru, encoder_input_en,
+                decoder_input_ru, decoder_input_en,
+                target_ru, target_en,
                 i):
         """
-        :param text_drop_prob: probability of an element of text decoder input to be dropped out
-        :param audio_drop_prob: probability of an element of audio decoder input to be dropped out
-        :param text_encoder_input: An tensor with shape of [batch_size, seq_len] of Long type
-        :param audio_encoder_input: An tensor with shape of [batch_size, seq_len] of Float type
-        :param text_decoder_input: An tensor with shape of [batch_size, seq_len + 1] of Long type
-        :param audio_decoder_input: An tensor with shape of [batch_size, seq_len + 1] of Float type
-        :param text_target: An tensor with shape of [batch_size, seq_len + 1] of Long type
-        :param audio_target: An tensor with shape of [batch_size, seq_len + 1] of Float type
+        :param drop_prob: probability of an element of decoder input to be dropped out
+        :param encoder_input_ru: An tensor with shape of [batch_size, seq_len] of Long type
+        :param encoder_input_en: An tensor with shape of [batch_size, seq_len] of Long type
+        :param decoder_input_ru: An tensor with shape of [batch_size, seq_len + 1] of Long type
+        :param decoder_input_en: An tensor with shape of [batch_size, seq_len + 1] of Long type
+        :param target_ru: An tensor with shape of [batch_size, seq_len + 1] of Long type
+        :param target_en: An tensor with shape of [batch_size, seq_len + 1] of Long type
         :param i: iteration
         :return: loss estimation for both models
         """
 
-        text_out, _, kld_text, text_mu, text_logvar = \
-            self.text_vae(text_drop_prob, text_encoder_input, text_decoder_input)
+        out_ru, _, kld_ru, mu_ru, logvar_ru = \
+            self.vae_ru(drop_prob, encoder_input_ru, decoder_input_ru)
 
-        text_out = text_out.view(-1, self.params.vocab_size)
-        text_target = text_target.view(-1)
-        rec_loss_text = F.cross_entropy(text_out, text_target)
+        out_ru = out_ru.view(-1, self.params.vocab_size_ru)
+        target_ru = target_ru.view(-1)
+        rec_loss_ru = F.cross_entropy(out_ru, target_ru)
 
-        audio_out, _, kld_audio, audio_mu, audio_logvar = \
-            self.audio_vae(audio_drop_prob, audio_encoder_input, audio_decoder_input)
+        out_en, _, kld_en, mu_en, logvar_en = \
+            self.vae_en(drop_prob, encoder_input_en, decoder_input_en)
 
-        rec_loss_audio = t.pow(audio_out - audio_target, 2).mean()
+        out_en = out_en.view(-1, self.params.vocab_size_en)
+        target_en = target_en.view(-1)
+        rec_loss_en = F.cross_entropy(out_en, target_en)
 
-        cd_latent_loss_text = CDVAE.cd_latent_loss(audio_mu, text_mu, audio_logvar, text_logvar)
-        cd_latent_loss_audio = CDVAE.cd_latent_loss(text_mu, audio_mu, text_logvar, audio_logvar)
+        cd_latent_loss_ru = CDVAE.cd_latent_loss(mu_en, mu_ru, logvar_en, logvar_ru)
+        cd_latent_loss_en = CDVAE.cd_latent_loss(mu_ru, mu_en, logvar_ru, logvar_en)
 
         '''
         Since ELBO does not contain log(p(x|z)) directly
         but contains quantity that have the same local maximums
         it is necessary to scale this quantity in order to train useful inference model
         '''
-        loss_text = 140 * rec_loss_text + kld_coef(i) * kld_text + cd_latent_loss_text
-        loss_audio = 2000 * rec_loss_audio + kld_coef(i) * kld_audio + cd_latent_loss_audio
+        loss_ru = 83 * rec_loss_ru + kld_coef(i) * kld_ru + cd_latent_loss_ru
+        loss_en = 83 * rec_loss_en + kld_coef(i) * kld_en + cd_latent_loss_en
 
-        return (loss_text, rec_loss_text, kld_text, cd_latent_loss_text), \
-               (loss_audio, rec_loss_audio, kld_audio, cd_latent_loss_audio)
+        return (loss_ru, rec_loss_ru, kld_ru, cd_latent_loss_ru), \
+               (loss_en, rec_loss_en, kld_en, cd_latent_loss_en)
 
     @staticmethod
     def cd_latent_loss(mu_1, mu_2, logvar_1, logvar_2):

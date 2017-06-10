@@ -10,7 +10,7 @@ class EmbeddingLockup(nn.Module):
         super(EmbeddingLockup, self).__init__()
 
         """
-        Loads embedings from path and provides access to it
+        Loads embedings for language and provides access to it
         """
 
         assert lang in ['ru', 'en'], 'Invalid lang value. Must be in ["ru", "en"]'
