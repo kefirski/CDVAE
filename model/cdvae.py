@@ -38,35 +38,78 @@ class CDVAE(nn.Module):
         :return: loss estimation for both models
         """
 
-        out_ru, _, kld_ru, mu_ru, logvar_ru = \
-            self.vae_ru(drop_prob, encoder_input_ru, decoder_input_ru)
+        ce_ru, kld_ru, mu_ru, logvar_ru = self.loss(encoder_input_ru, decoder_input_ru, target_ru, drop_prob, 'ru')
+        ce_en, kld_en, mu_en, logvar_en = self.loss(encoder_input_en, decoder_input_en, target_en, drop_prob, 'en')
 
-        out_ru = out_ru.view(-1, self.params.vocab_size_ru)
-        target_ru = target_ru.view(-1)
-        rec_loss_ru = F.cross_entropy(out_ru, target_ru)
-
-        out_en, _, kld_en, mu_en, logvar_en = \
-            self.vae_en(drop_prob, encoder_input_en, decoder_input_en)
-
-        out_en = out_en.view(-1, self.params.vocab_size_en)
-        target_en = target_en.view(-1)
-        rec_loss_en = F.cross_entropy(out_en, target_en)
-
-        cd_latent_loss_ru = CDVAE.cd_latent_loss(mu_en, mu_ru, logvar_en, logvar_ru)
-        cd_latent_loss_en = CDVAE.cd_latent_loss(mu_ru, mu_en, logvar_ru, logvar_en)
+        cd_kld_ru = CDVAE.cd_latent_loss(mu_en, mu_ru, logvar_en, logvar_ru)
+        cd_kld_en = CDVAE.cd_latent_loss(mu_ru, mu_en, logvar_ru, logvar_en)
 
         '''
         Since ELBO does not contain log(p(x|z)) directly
         but contains quantity that have the same local maximums
         it is necessary to scale this quantity in order to train useful inference model
         '''
-        loss_ru = 83 * rec_loss_ru + kld_coef(i) * kld_ru + cd_latent_loss_ru
-        loss_en = 83 * rec_loss_en + kld_coef(i) * kld_en + cd_latent_loss_en
+        loss_ru = 83 * ce_ru + kld_coef(i) * kld_ru + cd_kld_ru
+        loss_en = 83 * ce_en + kld_coef(i) * kld_en + cd_kld_en
 
-        return (loss_ru, rec_loss_ru, kld_ru, cd_latent_loss_ru), \
-               (loss_en, rec_loss_en, kld_en, cd_latent_loss_en)
+        return (loss_ru, ce_ru, kld_ru, cd_kld_ru), \
+               (loss_en, ce_en, kld_en, cd_kld_en)
+
+    def loss(self, encoder_input, decoder_input, decoder_target, drop_prob: float, lang: str):
+        """
+        :param encoder_input: An tensor with shape of [batch_size, seq_len] of Long type
+        :param decoder_input: An tensor with shape of [batch_size, seq_len + 1] of Long type
+        :param decoder_target: An tensor with shape of [batch_size, seq_len + 1] of Long type
+        :param drop_prob: probability of an element of decoder input to be dropped out
+        :param lang: language to choose model from
+        :return: ELBO parts, mu and logvar of inference reparametrization
+        """
+
+        model = [self.vae_ru, self.vae_en][0 if lang == 'ru' else 1]
+        vocab_size = [self.params.vocab_size_ru, self.params.vocab_size_en][0 if lang == 'ru' else 1]
+
+        out, _, mu, logvar = model(drop_prob, encoder_input, decoder_input)
+
+        out = out.view(-1, vocab_size)
+        decoder_target = decoder_target.view(-1)
+
+        cross_entropy = F.cross_entropy(out, decoder_target)
+        kld = CDVAE.latent_loss(mu, logvar)
+
+        return cross_entropy, kld, mu, logvar
+
+    def translate(self, encoder_input_from, decoder_input_to, to: str):
+        """
+        :param encoder_input_from: An tensor with shape of [batch_size, seq_len] of Long type
+        :param decoder_input_to: An tensor with shape of [batch_size, seq_len + 1] of Long type
+        :param to: language to choose model from
+        :return: a numpy array of generated data
+        """
+
+        '''
+        Performs inference from one model 
+        and generate data with condition to latent variable from another
+        '''
+
+        model_from = [self.vae_ru, self.vae_en][0 if to == 'en' else 1]
+        z, _, _ = model_from.inference(encoder_input_from)
+
+        model_to = [self.vae_ru, self.vae_en][0 if to == 'ru' else 1]
+        translation, _ = model_to.generate(decoder_input_to, z, 0.5, None)
+
+        [batch_size, seq_len, vocab_size] = translation.size()
+
+        translation = translation.view(-1, vocab_size)
+        translation = F.softmax(translation)
+        translation = translation.view(batch_size, seq_len, vocab_size)
+
+        return translation.data.numpy()
 
     @staticmethod
     def cd_latent_loss(mu_1, mu_2, logvar_1, logvar_2):
         return 0.5 * t.sum(logvar_1 - logvar_2 + t.exp(logvar_2) / t.exp(logvar_1) +
                            t.pow(mu_1 - mu_2, 2) / t.exp(logvar_1) - 1).mean()
+
+    @staticmethod
+    def latent_loss(mu, logvar):
+        return (-0.5 * t.sum(logvar - t.pow(mu, 2) - t.exp(logvar) + 1, 1)).mean()

@@ -12,15 +12,15 @@ import time
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='word2vec')
-    parser.add_argument('--num-iterations', type=int, default=25000000, metavar='NI',
-                        help='num iterations (default: 25000000)')
+    parser.add_argument('--num-iterations', type=int, default=50000, metavar='NI',
+                        help='num iterations (default: 50000)')
     parser.add_argument('--batch-size', type=int, default=20, metavar='BS',
                         help='batch size (default: 20)')
-    parser.add_argument('--num-sample', type=int, default=4, metavar='NS',
+    parser.add_argument('--num-sample', type=int, default=2, metavar='NS',
                         help='num sample (default: 4)')
     parser.add_argument('--use-cuda', type=bool, default=False, metavar='CUDA',
                         help='use cuda (default: False)')
-    parser.add_argument('--lang', type=str, default='en', metavar='L',
+    parser.add_argument('--lang', type=str, default='ru', metavar='L',
                         help='lang (default: ru)')
     args = parser.parse_args()
 

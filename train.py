@@ -61,15 +61,23 @@ if __name__ == "__main__":
 
         if iteration % 10 == 0:
             print('\n')
-            print('|-----------------------------------------------------------------------|')
+            print('|--------------------------------------|')
             print(iteration)
-            print('|---------reconst-loss-----------kl-loss-----------cd-loss--------------|')
-            print('|----------------------------------ru-----------------------------------|')
+            print('|---reconst-loss--kl-loss--cd-loss-----|')
+            print('|---------------ru---------------------|')
             print(loss_ru[1].data.cpu().numpy()[0],
                   loss_ru[2].data.cpu().numpy()[0],
                   loss_ru[3].data.cpu().numpy()[0])
-            print('|----------------------------------en-----------------------------------|')
+            print('|---------------en---------------------|')
             print(loss_en[1].data.cpu().numpy()[0],
                   loss_en[2].data.cpu().numpy()[0],
                   loss_en[3].data.cpu().numpy()[0])
-            print('|-----------------------------------------------------------------------|')
+            print('|--------------------------------------|')
+
+        if iteration % 20 == 0:
+            (input_ru, _, _), (_, input_en, _) = \
+                batch_loader.next_batch(1, 'train', args.use_cuda)
+
+            translation = cdvae.translate(input_ru, input_en, to='en')
+            print(' '.join([batch_loader.idx_to_word_ru[idx] for idx in input_ru.data.numpy()[0]]))
+            print(' '.join([batch_loader.idx_to_word_en[batch_loader.sample_word(p, 'en')] for p in translation[0]]))

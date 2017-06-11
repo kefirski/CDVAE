@@ -55,28 +55,26 @@ class VAE(nn.Module):
         logvar = None
 
         if z is None:
-            ''' Get context from encoder and sample z ~ N(mu, std)
-            '''
-            [batch_size, _] = encoder_input.size()
+            ''' Get context from encoder and sample z ~ N(mu, std)'''
+            z, mu, logvar = self.inference(encoder_input)
 
-            mu, logvar = self.encode(encoder_input)
-            std = t.exp(0.5 * logvar)
+        out, final_state = self.generate(decoder_input, z, drop_prob, initial_state)
 
-            z = Variable(t.randn([batch_size, self.latent_size]))
-            if encoder_input.is_cuda:
-                z = z.cuda()
+        return out, final_state, mu, logvar
 
-            z = z * std + mu
+    def inference(self, encoder_input):
+        mu, logvar = self.encode(encoder_input)
 
-            kld = (-0.5 * t.sum(logvar - t.pow(mu, 2) - t.exp(logvar) + 1, 1)).mean()
-        else:
-            kld = None
+        z = self.reparametrize(mu, logvar, encoder_input.is_cuda)
+
+        return z, mu, logvar
+
+    def generate(self, decoder_input, z, drop_prob, initial_state):
 
         decoder_input = self.embed(decoder_input)
         decoder_input = F.dropout(decoder_input, drop_prob, training=z is None)
-        out, final_state = self.decoder(decoder_input, z, initial_state)
 
-        return out, final_state, kld, mu, logvar
+        return self.decoder(decoder_input, z, initial_state)
 
     def encode(self, input):
         input = self.embed(input)
@@ -86,6 +84,18 @@ class VAE(nn.Module):
         logvar = self.context_to_logvar(context)
 
         return mu, logvar
+
+    def reparametrize(self, mu, logvar, use_cuda):
+
+        batch_size = mu.size()[0]
+
+        std = t.exp(0.5 * logvar)
+
+        z = Variable(t.randn([batch_size, self.latent_size]))
+        if use_cuda:
+            z = z.cuda()
+
+        return z * std + mu
 
     def sample(self, batch_loader, seq_len, use_cuda, z=None):
 
