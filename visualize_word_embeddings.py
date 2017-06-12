@@ -29,4 +29,4 @@ if __name__ == "__main__":
     for i, word in enumerate(words):
         ax.annotate(word, (x[i], y[i]))
 
-    fig.savefig('word_embedding.png', dpi=130)
+    fig.savefig('word_embedding_{}.png'.format(args.lang), dpi=130)
