@@ -22,10 +22,8 @@ if __name__ == "__main__":
                         help='learning rate (default: 0.0005)')
     parser.add_argument('--dropout', type=float, default=0.12, metavar='TDR',
                         help='dropout (default: 0.12)')
-    parser.add_argument('--ru-save', type=str, default=None, metavar='TS',
-                        help='path where save trained ru model to (default: None)')
-    parser.add_argument('--en-save', type=str, default=None, metavar='AS',
-                        help='path where save trained en model to (default: None)')
+    parser.add_argument('--save', type=str, default=None, metavar='TS',
+                        help='path where save trained model to (default: None)')
     args = parser.parse_args()
 
     batch_loader = BatchLoader()
