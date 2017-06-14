@@ -75,5 +75,5 @@ if __name__ == "__main__":
                 batch_loader.next_batch(1, 'valid', args.use_cuda)
 
             translation = cdvae.translate(input_ru, input_en, to='en')
-            print(''.join([batch_loader.idx_to_char['ru'][idx] for idx in input_ru.data.cpu.numpy()[0]]))
+            print(''.join([batch_loader.idx_to_char['ru'][idx] for idx in input_ru.data.cpu().numpy()[0]]))
             print(''.join([batch_loader.idx_to_char['en'][BatchLoader.sample_character(p)] for p in translation[0]]))
