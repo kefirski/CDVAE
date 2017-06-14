@@ -13,13 +13,13 @@ class CDVAE(nn.Module):
 
         self.params = params
 
-        self.vae_ru = VAE(params.encoder_size, params.encoder_num_layers, params.decoder_size,
-                          params.decoder_num_layers,
-                          params.latent_variable_size, params.vocab_size_ru, params.embed_size, 'ru')
+        self.vae_ru = VAE(params.encoder_size, params.encoder_num_layers,
+                          params.decoder_size, params.decoder_num_layers,
+                          params.latent_variable_size, params.vocab_size['ru'], params.embed_size, 'ru')
 
-        self.vae_en = VAE(params.encoder_size, params.encoder_num_layers, params.decoder_size,
-                          params.decoder_num_layers,
-                          params.latent_variable_size, params.vocab_size_en, params.embed_size, 'en')
+        self.vae_en = VAE(params.encoder_size, params.encoder_num_layers,
+                          params.decoder_size, params.decoder_num_layers,
+                          params.latent_variable_size, params.vocab_size['en'], params.embed_size, 'en')
 
     def forward(self, drop_prob,
                 encoder_input_ru, encoder_input_en,
@@ -41,16 +41,16 @@ class CDVAE(nn.Module):
         ce_ru, kld_ru, mu_ru, logvar_ru = self.loss(encoder_input_ru, decoder_input_ru, target_ru, drop_prob, 'ru')
         ce_en, kld_en, mu_en, logvar_en = self.loss(encoder_input_en, decoder_input_en, target_en, drop_prob, 'en')
 
-        cd_kld_ru = CDVAE.cd_latent_loss(mu_en, mu_ru, logvar_en, logvar_ru)
-        cd_kld_en = CDVAE.cd_latent_loss(mu_ru, mu_en, logvar_ru, logvar_en)
+        cd_kld_ru = CDVAE.cd_latent_loss(mu_ru, logvar_ru, mu_en, logvar_en)
+        cd_kld_en = CDVAE.cd_latent_loss(mu_en, logvar_en, mu_ru, logvar_ru)
 
         '''
         Since ELBO does not contain log(p(x|z)) directly
         but contains quantity that have the same local maximums
         it is necessary to scale this quantity in order to train useful inference model
         '''
-        loss_ru = 83 * ce_ru + kld_coef(i) * kld_ru + cd_kld_ru
-        loss_en = 83 * ce_en + kld_coef(i) * kld_en + cd_kld_en
+        loss_ru = 350 * ce_ru + kld_coef(i) * kld_ru + cd_kld_ru
+        loss_en = 350 * ce_en + kld_coef(i) * kld_en + cd_kld_en
 
         return (loss_ru, ce_ru, kld_ru, cd_kld_ru), \
                (loss_en, ce_en, kld_en, cd_kld_en)
@@ -66,11 +66,10 @@ class CDVAE(nn.Module):
         """
 
         model = [self.vae_ru, self.vae_en][0 if lang == 'ru' else 1]
-        vocab_size = [self.params.vocab_size_ru, self.params.vocab_size_en][0 if lang == 'ru' else 1]
 
         out, _, mu, logvar = model(drop_prob, encoder_input, decoder_input)
 
-        out = out.view(-1, vocab_size)
+        out = out.view(-1, self.params.vocab_size[lang])
         decoder_target = decoder_target.view(-1)
 
         cross_entropy = F.cross_entropy(out, decoder_target)
@@ -106,9 +105,9 @@ class CDVAE(nn.Module):
         return translation.data.numpy()
 
     @staticmethod
-    def cd_latent_loss(mu_1, mu_2, logvar_1, logvar_2):
-        return 0.5 * t.sum(logvar_1 - logvar_2 + t.exp(logvar_2) / t.exp(logvar_1) +
-                           t.pow(mu_1 - mu_2, 2) / t.exp(logvar_1) - 1).mean()
+    def cd_latent_loss(mu_1, logvar_1, mu_2, logvar_2):
+        return 0.5 * t.sum(logvar_2 - logvar_1 + t.exp(logvar_1) / t.exp(logvar_2) +
+                           t.pow(mu_1 - mu_2, 2) / t.exp(logvar_2) - 1).mean()
 
     @staticmethod
     def latent_loss(mu, logvar):

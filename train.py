@@ -27,8 +27,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     batch_loader = BatchLoader()
-    parameters = Parameters(batch_loader.vocab_size_ru,
-                            batch_loader.vocab_size_en)
+    parameters = Parameters(batch_loader.vocab_size)
 
     cdvae = CDVAE(parameters)
     if args.use_cuda:
@@ -74,8 +73,8 @@ if __name__ == "__main__":
 
         if iteration % 20 == 0:
             (input_ru, _, _), (_, input_en, _) = \
-                batch_loader.next_batch(1, 'train', args.use_cuda)
+                batch_loader.next_batch(1, 'valid', args.use_cuda)
 
             translation = cdvae.translate(input_ru, input_en, to='en')
-            print(' '.join([batch_loader.idx_to_word_ru[idx] for idx in input_ru.data.numpy()[0]]))
-            print(' '.join([batch_loader.idx_to_word_en[batch_loader.sample_word(p, 'en')] for p in translation[0]]))
+            print(''.join([batch_loader.idx_to_char['ru'][idx] for idx in input_ru.data.numpy()[0]]))
+            print(''.join([batch_loader.idx_to_char['en'][BatchLoader.sample_character(p)] for p in translation[0]]))

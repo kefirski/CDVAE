@@ -17,16 +17,7 @@ class BatchLoader:
         assert isinstance(data_path, str), \
             'Invalid data_path_prefix type. Required {}, but {} found'.format(str, type(data_path))
 
-        self.split = 400
-
-        '''
-        In order to reduce number of tokens 
-        it is necessary to drop these that uncommon in the corpus
-        
-        Every token that frequency in the corpus is below threshold should be replaced with unk token
-        '''
-        self.unk_threshold = 0.000004
-        self.line_threshold = 0.16
+        self.split = 3000
 
         self.data_path = data_path
 
@@ -37,9 +28,8 @@ class BatchLoader:
         pad_token uses to fill tensor to fixed-size length
         '''
         self.go_token = '>'
-        self.pad_token = '_'
+        self.pad_token = ''
         self.stop_token = '<'
-        self.unk_token = '<unk>'
 
         self.preprocessings_path = self.data_path + 'preprocessed_data/'
 
@@ -67,61 +57,17 @@ class BatchLoader:
 
             print('data have preprocessed')
 
-    def build_vocab(self, sentences):
-        """
-        build_vocab(self, sentences) -> vocab_size, idx_to_word, word_to_idx
-            vocab_size - number of unique words in corpus
-            idx_to_word - array of shape [vocab_size] containing ordered list of unique words
-            word_to_idx - dictionary of shape [vocab_size]
-                such that idx_to_char[idx_to_word[some_word]] = some_word
-                where some_word is such that idx_to_word contains it
-        """
+    def build_vocab(self, data):
 
-        '''
-        Takes unique words in whole sensences 
-        and creates from them idx_to_word and word_to_idx objects
-        '''
+        # unique characters with blind symbol
+        chars = list(set(data)) + [self.pad_token, self.go_token, self.stop_token]
+        chars_vocab_size = len(chars)
 
-        word_counts = collections.Counter(sentences)
+        # mappings itself
+        idx_to_char = chars
+        char_to_idx = {x: i for i, x in enumerate(idx_to_char)}
 
-        mc = word_counts.most_common()
-        sentence_len = len(sentences)
-
-        """
-        Take only those tokens that frequency is abowe threshold
-        """
-        idx_to_word = [x for (x, n) in mc if n / sentence_len > self.unk_threshold]
-        idx_to_word = list(sorted(idx_to_word)) + [self.pad_token, self.go_token, self.stop_token, self.unk_token]
-        words_vocab_size = len(idx_to_word)
-
-        word_to_idx = {x: i for i, x in enumerate(idx_to_word)}
-
-        return words_vocab_size, idx_to_word, word_to_idx
-
-    @staticmethod
-    def clean_string(string):
-
-        string = re.sub(r"[^가-힣A-Za-zА-Яа-я0-9(),!?:;.\'`]", " ", string)
-        string = re.sub(r"\'s", " \'s", string)
-        string = re.sub(r"\'ve", " \'ve", string)
-        string = re.sub(r"n\'t", " n\'t", string)
-        string = re.sub(r"\'re", " \'re", string)
-        string = re.sub(r"\'d", " \'d", string)
-        string = re.sub(r"\'ll", " \'ll", string)
-        string = re.sub(r"\.", " .", string)
-        string = re.sub(r",", " ,", string)
-        string = re.sub(r":", " : ", string)
-        string = re.sub(r"\"", " \" ", string)
-        string = re.sub(r"«", "« ", string)
-        string = re.sub(r"»", "» ", string)
-        string = re.sub(r";", " ;", string)
-        string = re.sub(r"!", " !", string)
-        string = re.sub(r"\(", " ( ", string)
-        string = re.sub(r"\)", " )", string)
-        string = re.sub(r"\?", " ?", string)
-        string = re.sub(r'([\s])+', ' ', string)
-
-        return string.lower()
+        return chars_vocab_size, idx_to_char, char_to_idx
 
     def preprocess_data(self):
         """
@@ -132,47 +78,21 @@ class BatchLoader:
             os.makedirs(self.preprocessings_path)
 
         data = [open(path, 'r', encoding='utf-8').read() for path in self.text_files]
-        data = [[BatchLoader.clean_string(line).split() for line in domain.split('\n')[:-1]] for domain in data]
 
-        self.vocab_size_ru, self.idx_to_word_ru, self.word_to_idx_ru = self.build_vocab(
-            [word for line in data[0] for word in line]
-        )
-        self.vocab_size_en, self.idx_to_word_en, self.word_to_idx_en = self.build_vocab(
-            [word for line in data[1] for word in line]
-        )
+        v_s_ru, i_to_c_ru, c_to_i_ru = self.build_vocab(data[0])
+        v_s_en, i_to_c_en, c_to_i_en = self.build_vocab(data[1])
 
-        data[0] = [[self.word_to_idx_ru[word] if word in self.word_to_idx_ru else self.word_to_idx_ru[self.unk_token]
-                    for word in line] for line in data[0]]
-        data[1] = [[self.word_to_idx_en[word] if word in self.word_to_idx_en else self.word_to_idx_en[self.unk_token]
-                    for word in line] for line in data[1]]
+        self.vocab_size = {'ru': v_s_ru, 'en': v_s_en}
+        self.idx_to_char = {'ru': i_to_c_ru, 'en': i_to_c_en}
+        self.char_to_idx = {'ru': c_to_i_ru, 'en': c_to_i_en}
 
-        data = np.array(data)
-        i = 0
+        '''Take every line and change characters with indexes'''
+        for i, lang in enumerate(['ru', 'en']):
+            data[i] = [[self.char_to_idx[lang][char] for char in line] for line in data[i].split('\n')[:-1]]
 
-        """
-        Since after the replacment of tokens that frequency is below the threshold 
-        some lines may contain too many of <unk> tokens
-        it is necessary to drop en-ru pairs where frequency of them is too hight
-        """
-        while i < len(data[0]):
+        self.valid_data, self.train_data = [domain[:self.split] for domain in data],\
+                                           [domain[self.split:] for domain in data]
 
-            appropriate_ru = len([idx for idx in data[0][i] if self.idx_to_word_ru[idx] == self.unk_token]) / len(
-                data[0][i]) < self.line_threshold
-            appropriate_en = len([idx for idx in data[1][i] if self.idx_to_word_en[idx] == self.unk_token]) / len(
-                data[1][i]) < self.line_threshold
-
-            if not (appropriate_ru and appropriate_en):
-                data = np.delete(data, i, 1)
-                continue
-
-            i += 1
-
-        print("preprocessed ru vocab size is equal to {}, en vocab size –– to {}"
-              .format(self.vocab_size_ru, self.vocab_size_en))
-        print("preprocessed data length {}".format(len(data[0])))
-
-        self.valid_data, self.train_data = [[domain[:self.split] for domain in data],
-                                            [domain[self.split:] for domain in data]]
         self.valid_data = np.array(self.valid_data)
         self.train_data = np.array(self.train_data)
 
@@ -183,40 +103,27 @@ class BatchLoader:
 
         for i, file in enumerate(self.idx_files):
             with open(file, 'wb') as f:
-                cPickle.dump([self.idx_to_word_ru, self.idx_to_word_en][i], f)
+                cPickle.dump([self.idx_to_char['ru'], self.idx_to_char['en']][i], f)
 
     def load_preprocessed_data(self):
 
-        self.idx_to_word_ru, self.idx_to_word_en = (cPickle.load(open(path, "rb")) for path in self.idx_files)
+        i_to_c_ru, i_to_c_en = (cPickle.load(open(path, "rb")) for path in self.idx_files)
+        v_s_ru, v_s_en = (len(idx) for idx in [i_to_c_ru, i_to_c_en])
+        c_to_i_ru, c_to_i_en = (dict(zip(idx, range(len(idx)))) for idx in [i_to_c_ru, i_to_c_en])
 
-        self.vocab_size_ru, self.vocab_size_en = (len(idx) for idx in [self.idx_to_word_ru, self.idx_to_word_en])
-
-        self.word_to_idx_ru, self.word_to_idx_en = (dict(zip(idx, range(len(idx))))
-                                                    for idx in [self.idx_to_word_ru, self.idx_to_word_en])
+        self.vocab_size = {'ru': v_s_ru, 'en': v_s_en}
+        self.idx_to_char = {'ru': i_to_c_ru, 'en': i_to_c_en}
+        self.char_to_idx = {'ru': c_to_i_ru, 'en': c_to_i_en}
 
         self.train_data, self.valid_data = (np.load(path) for path in self.tensor_files)
         self.data_len = [len(self.train_data[0]), len(self.valid_data[0])]
-
-    @staticmethod
-    def bag_window(seq, window=5):
-
-        assert window > 1 and isinstance(window, int)
-
-        context = []
-        seq_len = len(seq)
-        num_slices = seq_len - window + 1
-
-        for i in range(num_slices):
-            context += [seq[i:i + window]]
-
-        return [[value] + c[:i] + c[i + 1:] for c in context for i, value in enumerate(c)]
 
     def next_batch(self, batch_size, target: str, use_cuda=False):
         """
         :param batch_size: num_batches to lockup from data
         :param target: if target == 'train' then train data uses as target, in other case test data is used
         :param use_cuda: whether to use cuda
-        :return: encoder word and character input, latent representations, its sizes, decoder input and output
+        :return: encoder and decoder input
         """
 
         """
@@ -233,40 +140,6 @@ class BatchLoader:
 
         return self._wrap_tensor(encoder_input_ru, 'ru', use_cuda), self._wrap_tensor(encoder_input_en, 'en', use_cuda)
 
-    def next_embedding_batch(self, batch_size, lang):
-        """
-        :param batch_size: batch size
-        :param lang: which vocabulary to use
-        :return: Arrays of input and target for embedding learning
-        """
-
-        """
-        Sample indexes in order to choose random pairs of words and contexts 
-        """
-
-        lang = 0 if lang == 'ru' else 1
-        data_len = len(self.train_data[lang])
-
-        result = []
-
-        while len(result) != batch_size:
-            index = np.array(np.random.randint(data_len, size=1))
-            line = self.train_data[lang, index[0]]
-
-            pairs = BatchLoader.bag_window(line)
-
-            neccesary_to_add = batch_size - len(result)
-
-            if len(pairs) >= neccesary_to_add:
-                index = np.array(np.random.randint(len(pairs), size=neccesary_to_add))
-                pairs = [pairs[i] for i in index]
-
-            result += pairs
-
-        result = np.array(result)
-
-        return result[:, 0], result[:, 1:]
-
     def _wrap_tensor(self, encoder_input, lang: str, use_cuda: bool):
         """
         :param encoder_input: An list of batch size len filled with lists of input indexes
@@ -282,12 +155,9 @@ class BatchLoader:
 
         batch_size = len(encoder_input)
 
-        lang = 0 if lang == 'ru' else 1
-        word_to_idx = [self.word_to_idx_ru, self.word_to_idx_en][lang]
-
         '''Add go token before decoder input and stop token after decoder target'''
-        decoder_input = [[word_to_idx[self.go_token]] + line for line in encoder_input]
-        decoder_target = [line + [word_to_idx[self.stop_token]] for line in encoder_input]
+        decoder_input = [[self.char_to_idx[lang][self.go_token]] + line for line in encoder_input]
+        decoder_target = [line + [self.char_to_idx[lang][self.stop_token]] for line in encoder_input]
 
         '''Evaluate how much it is necessary to fill with pad tokens to make the same lengths'''
         input_seq_len = [len(line) for line in encoder_input]
@@ -295,9 +165,9 @@ class BatchLoader:
         to_add = [max_input_seq_len - len(encoder_input[i]) for i in range(batch_size)]
 
         for i in range(batch_size):
-            encoder_input[i] += [word_to_idx[self.pad_token]] * to_add[i]
-            decoder_input[i] += [word_to_idx[self.pad_token]] * to_add[i]
-            decoder_target[i] += [word_to_idx[self.pad_token]] * to_add[i]
+            encoder_input[i] += [self.char_to_idx[lang][self.pad_token]] * to_add[i]
+            decoder_input[i] += [self.char_to_idx[lang][self.pad_token]] * to_add[i]
+            decoder_target[i] += [self.char_to_idx[lang][self.pad_token]] * to_add[i]
 
         result = [np.array(var) for var in [encoder_input, decoder_input, decoder_target]]
         result = [Variable(t.from_numpy(var)).long() for var in result]
@@ -308,23 +178,19 @@ class BatchLoader:
 
     def go_input(self, batch_size, lang, use_cuda):
 
-        lang = 0 if lang == 'ru' else 1
-        vocab = [self.word_to_idx_ru, self.word_to_idx_en][lang]
-
-        go_input = np.array([[vocab[self.go_token]]] * batch_size)
+        go_input = np.array([[self.char_to_idx[lang][self.go_token]]] * batch_size)
         go_input = Variable(t.from_numpy(go_input)).long()
+
         if use_cuda:
             go_input = go_input.cuda()
+
         return go_input
 
-    def sample_word(self, distribution, lang: str):
+    @staticmethod
+    def sample_character(distribution):
         """
         :param distribution: An array of probabilities
-        :param lang: which vocabulary to use
-        :return: An index of sampled from distribution word
+        :return: An index of sampled from distribution character
         """
 
-        lang = 0 if lang == 'ru' else 1
-        vocab_size = [self.vocab_size_ru, self.vocab_size_en][lang]
-
-        return np.random.choice(vocab_size, p=distribution.ravel())
+        return np.random.choice(len(distribution), p=distribution.ravel())

@@ -3,10 +3,11 @@ import torch as t
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
+from torch.nn.init import xavier_normal
+from utils.batchloader import BatchLoader
+from utils.functions import fold
 from .encoder import Encoder
 from .decoder import Decoder
-from torch_modules.other.embeddings import EmbeddingLockup
-from utils.functions import fold
 
 
 class VAE(nn.Module):
@@ -23,7 +24,8 @@ class VAE(nn.Module):
         self.embed_size = embed_size
         self.lang = lang
 
-        self.embed = EmbeddingLockup(self.vocab_size, self.embed_size, lang, path_prefix='')
+        self.embed = nn.Embedding(self.vocab_size, self.embed_size)
+        self.embed.weight = xavier_normal(self.embed.weight)
 
         self.encoder = Encoder(encoder_size, encoder_num_layers, self.embed_size)
 
@@ -97,7 +99,7 @@ class VAE(nn.Module):
 
         return z * std + mu
 
-    def sample(self, batch_loader, seq_len, use_cuda, z=None):
+    def sample(self, batch_loader: BatchLoader, seq_len, use_cuda, z=None):
 
         if z is None:
             z = Variable(t.randn(1, self.latent_size))
@@ -109,16 +111,14 @@ class VAE(nn.Module):
 
         result = []
 
-        vocab = [batch_loader.idx_to_word_ru, batch_loader.idx_to_word_en][0 if self.lang == 'ru' else 1]
-
         for i in range(seq_len):
             x, state, _, _, _ = self(0., None, x, z, state)
             x = x.squeeze()
             x = F.softmax(x)
 
             x = x.data.cpu().numpy()
-            idx = batch_loader.sample_word(x, self.lang)
-            x = vocab[idx]
+            idx = batch_loader.sample_character(x)
+            x = batch_loader.idx_to_char[self.lang][idx]
 
             if x == batch_loader.stop_token:
                 break
@@ -130,7 +130,7 @@ class VAE(nn.Module):
             if use_cuda:
                 x = x.cuda()
 
-        return ' '.join(result)
+        return ''.join(result)
 
     def learnable_parameters(self):
         return [p for p in self.parameters() if p.requires_grad]
