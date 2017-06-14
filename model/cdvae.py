@@ -102,7 +102,7 @@ class CDVAE(nn.Module):
         translation = F.softmax(translation)
         translation = translation.view(batch_size, seq_len, vocab_size)
 
-        return translation.data.numpy()
+        return translation.data.cpu().numpy()
 
     @staticmethod
     def cd_latent_loss(mu_1, logvar_1, mu_2, logvar_2):
