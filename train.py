@@ -83,7 +83,7 @@ if __name__ == "__main__":
             print('-----------')
             print('vae ru-ru')
             (input_ru, dec_input_ru, _), _ = batch_loader.next_batch(1, 'valid', args.use_cuda)
-            out = cdvae.vae_ru(0., input_ru, dec_input_ru)
+            out, _, _, _ = cdvae.vae_ru(0., input_ru, dec_input_ru)
             out = F.softmax(out.squeeze())
             out = out.data.cpu().numpy()
             print(''.join([batch_loader.idx_to_char['ru'][BatchLoader.sample_character(p)] for p in out]))
