@@ -94,7 +94,7 @@ class CDVAE(nn.Module):
         z, _, _ = model_from.inference(encoder_input_from)
 
         model_to = [self.vae_ru, self.vae_en][0 if to == 'ru' else 1]
-        translation, _ = model_to.generate(decoder_input_to, z, 0.5, None)
+        translation, _ = model_to.generate(decoder_input_to, z, 0.1, None)
 
         [batch_size, seq_len, vocab_size] = translation.size()
 
