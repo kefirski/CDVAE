@@ -106,8 +106,8 @@ class CDVAE(nn.Module):
 
     @staticmethod
     def cd_latent_loss(mu_1, logvar_1, mu_2, logvar_2):
-        return 0.5 * t.sum(logvar_2 - logvar_1 + t.exp(logvar_1) / t.exp(logvar_2) +
-                           t.pow(mu_1 - mu_2, 2) / t.exp(logvar_2) - 1).mean()
+        return 0.5 * t.sum(logvar_2 - logvar_1 + t.exp(logvar_1) / (t.exp(logvar_2) + 1e-8) +
+                           t.pow(mu_1 - mu_2, 2) / (t.exp(logvar_2) + 1e-8) - 1).mean()
 
     @staticmethod
     def latent_loss(mu, logvar):
