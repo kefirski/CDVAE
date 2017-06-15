@@ -29,6 +29,9 @@ class LayerNormGRU(nn.Module):
         if state is None:
             state = Variable(t.zeros(batch_size, self.hidden_size))
 
+            if input.is_cuda:
+                state = state.cuda()
+
         for i in range(seq_len):
             state = self.cell(input[:, i], state)
             result += [state.unsqueeze(1)]
