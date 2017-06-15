@@ -71,8 +71,7 @@ if __name__ == "__main__":
             print('|--------------------------------------|')
 
         if iteration % 20 == 0:
-            (input_ru, _, _), (_, input_en, _) = \
-                batch_loader.next_batch(1, 'valid', args.use_cuda)
+            (input_ru, _, _), (_, input_en, _) = batch_loader.next_batch(1, 'valid', args.use_cuda)
 
             translation = cdvae.translate(input_ru, input_en, to='en')
             print('translation')
@@ -81,4 +80,11 @@ if __name__ == "__main__":
             print('-----------')
             print('generation ru')
             print(cdvae.vae_ru.sample(batch_loader, 120, args.use_cuda))
+            print('-----------')
+            print('vae ru-ru')
+            (input_ru, dec_input_ru, _), _ = batch_loader.next_batch(1, 'valid', args.use_cuda)
+            out = cdvae.vae_ru(0., input_ru, dec_input_ru)
+            out = F.softmax(out.squeeze())
+            out = out.data.cpu().numpy()
+            print(''.join([batch_loader.idx_to_char['ru'][BatchLoader.sample_character(p)] for p in out]))
             print('-----------')

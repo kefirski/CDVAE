@@ -18,7 +18,7 @@ class Encoder(nn.Module):
                           batch_first=True,
                           bidirectional=True)
 
-        self.highway = Highway(self.encoder_size * 2, 3, F.elu)
+        self.highway = Highway(self.encoder_size * 2, 4, F.elu)
 
     def forward(self, input):
         """

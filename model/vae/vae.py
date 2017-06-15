@@ -112,7 +112,7 @@ class VAE(nn.Module):
         result = []
 
         for i in range(seq_len):
-            x, state, _, _, _ = self(0., None, x, z, state)
+            x, state, _, _ = self(0., None, x, z, state)
             x = x.squeeze()
             x = F.softmax(x)
 
