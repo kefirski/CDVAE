@@ -17,8 +17,8 @@ if __name__ == "__main__":
                         help='batch size (default: 10)')
     parser.add_argument('--use-cuda', type=bool, default=False, metavar='CUDA',
                         help='use cuda (default: False)')
-    parser.add_argument('--learning-rate', type=float, default=0.0005, metavar='LR',
-                        help='learning rate (default: 0.0005)')
+    parser.add_argument('--learning-rate', type=float, default=0.005, metavar='LR',
+                        help='learning rate (default: 0.005)')
     parser.add_argument('--dropout', type=float, default=0.12, metavar='TDR',
                         help='dropout (default: 0.12)')
     parser.add_argument('--save', type=str, default=None, metavar='TS',
@@ -75,5 +75,10 @@ if __name__ == "__main__":
                 batch_loader.next_batch(1, 'valid', args.use_cuda)
 
             translation = cdvae.translate(input_ru, input_en, to='en')
+            print('translation')
             print(''.join([batch_loader.idx_to_char['ru'][idx] for idx in input_ru.data.cpu().numpy()[0]]))
             print(''.join([batch_loader.idx_to_char['en'][BatchLoader.sample_character(p)] for p in translation[0]]))
+            print('-----------')
+            print('generation ru')
+            print(cdvae.vae_ru.sample(batch_loader, 120, args.use_cuda))
+            print('-----------')

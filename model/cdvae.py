@@ -49,8 +49,8 @@ class CDVAE(nn.Module):
         but contains quantity that have the same local maximums
         it is necessary to scale this quantity in order to train useful inference model
         '''
-        loss_ru = 350 * ce_ru + kld_coef(i) * kld_ru + cd_kld_ru
-        loss_en = 350 * ce_en + kld_coef(i) * kld_en + cd_kld_en
+        loss_ru = 500 * ce_ru + kld_coef(i) * (kld_ru + cd_kld_ru)
+        loss_en = 500 * ce_en + kld_coef(i) * (kld_en + cd_kld_en)
 
         return (loss_ru, ce_ru, kld_ru, cd_kld_ru), \
                (loss_en, ce_en, kld_en, cd_kld_en)
