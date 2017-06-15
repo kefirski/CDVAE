@@ -86,5 +86,6 @@ if __name__ == "__main__":
             out, _, _, _ = cdvae.vae_ru(0., input_ru, dec_input_ru)
             out = F.softmax(out.squeeze())
             out = out.data.cpu().numpy()
+            print(''.join([batch_loader.idx_to_char['ru'][idx] for idx in input_ru.squeeze().data.cpu().numpy()]))
             print(''.join([batch_loader.idx_to_char['ru'][BatchLoader.sample_character(p)] for p in out]))
             print('-----------')
