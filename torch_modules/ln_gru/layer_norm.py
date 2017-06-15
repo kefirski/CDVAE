@@ -15,8 +15,8 @@ class LayerNormalization(nn.Module):
         self.betta = nn.Parameter(t.zeros(1, hidden_size))
 
     def forward(self, z):
-        mu = torch.mean(z)
-        sigma = torch.std(z)
+        mu = t.mean(z)
+        sigma = t.std(z)
 
         ln_out = (z - mu.expand_as(z)) / (sigma.expand_as(z) + self.eps)
         ln_out = ln_out * self.gamma.expand_as(z) + self.betta.expand_as(z)

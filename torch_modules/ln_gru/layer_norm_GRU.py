@@ -31,6 +31,6 @@ class LayerNormGRU(nn.Module):
 
         for i in range(seq_len):
             state = self.cell(input[:, i], state)
-            result += state.unsqueeze(1)
+            result += [state.unsqueeze(1)]
 
-        return t.cat(result, dimension=1), state
+        return t.cat(result, 1), state

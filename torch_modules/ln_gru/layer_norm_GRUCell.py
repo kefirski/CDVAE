@@ -1,11 +1,12 @@
 import math
 import torch as t
-from torch.nn.module import Module
+import torch.nn as nn
 from torch.nn import Parameter
 from .layer_norm import LayerNormalization
+import torch.nn.functional as F
 
 
-class LayerNormGRUCell(Module):
+class LayerNormGRUCell(nn.Module):
 
     def __init__(self, input_size, hidden_size, bias=True):
         super(LayerNormGRUCell, self).__init__()
