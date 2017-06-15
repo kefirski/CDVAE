@@ -77,7 +77,7 @@ class BatchLoader:
         if not os.path.exists(self.preprocessings_path):
             os.makedirs(self.preprocessings_path)
 
-        data = [open(path, 'r', encoding='utf-8').read() for path in self.text_files]
+        data = [open(path, 'r', encoding='utf-8').read().lower() for path in self.text_files]
 
         v_s_ru, i_to_c_ru, c_to_i_ru = self.build_vocab(data[0])
         v_s_en, i_to_c_en, c_to_i_en = self.build_vocab(data[1])
