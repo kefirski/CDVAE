@@ -41,8 +41,8 @@ class CDVAE(nn.Module):
         ce_ru, kld_ru, mu_ru, logvar_ru = self.loss(encoder_input_ru, decoder_input_ru, target_ru, drop_prob, 'ru')
         ce_en, kld_en, mu_en, logvar_en = self.loss(encoder_input_en, decoder_input_en, target_en, drop_prob, 'en')
 
-        cd_kld_ru = 0
-        cd_kld_en = 0
+        cd_kld_ru = Variable(t.FloatTensor([0]))
+        cd_kld_en = Variable(t.FloatTensor([0]))
         if i > 20000:
             cd_kld_ru = CDVAE.cd_latent_loss(mu_ru, logvar_ru, mu_en, logvar_en)
             cd_kld_en = CDVAE.cd_latent_loss(mu_en, logvar_en, mu_ru, logvar_ru)
