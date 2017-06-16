@@ -3,7 +3,7 @@ import os
 import numpy as np
 import torch as t
 import torch.nn.functional as F
-from torch.optim import Adam, SGD
+from torch.optim import Adam
 from utils.batchloader import BatchLoader
 from utils.parameters import Parameters
 from model.cdvae import CDVAE

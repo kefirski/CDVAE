@@ -41,16 +41,19 @@ class CDVAE(nn.Module):
         ce_ru, kld_ru, mu_ru, logvar_ru = self.loss(encoder_input_ru, decoder_input_ru, target_ru, drop_prob, 'ru')
         ce_en, kld_en, mu_en, logvar_en = self.loss(encoder_input_en, decoder_input_en, target_en, drop_prob, 'en')
 
-        cd_kld_ru = CDVAE.cd_latent_loss(mu_ru, logvar_ru, mu_en, logvar_en)
-        cd_kld_en = CDVAE.cd_latent_loss(mu_en, logvar_en, mu_ru, logvar_ru)
+        cd_kld_ru = 0
+        cd_kld_en = 0
+        if i > 20000:
+            cd_kld_ru = CDVAE.cd_latent_loss(mu_ru, logvar_ru, mu_en, logvar_en)
+            cd_kld_en = CDVAE.cd_latent_loss(mu_en, logvar_en, mu_ru, logvar_ru)
 
         '''
         Since ELBO does not contain log(p(x|z)) directly
         but contains quantity that have the same local maximums
         it is necessary to scale this quantity in order to train useful inference model
         '''
-        loss_ru = 800 * ce_ru + kld_coef(i) * (kld_ru + cd_kld_ru)
-        loss_en = 800 * ce_en + kld_coef(i) * (kld_en + cd_kld_en)
+        loss_ru = 800 * ce_ru + kld_coef(i) * kld_ru + cd_kld_ru
+        loss_en = 800 * ce_en + kld_coef(i) * kld_en + cd_kld_en
 
         return (loss_ru, ce_ru, kld_ru, cd_kld_ru), \
                (loss_en, ce_en, kld_en, cd_kld_en)
@@ -106,8 +109,8 @@ class CDVAE(nn.Module):
 
     @staticmethod
     def cd_latent_loss(mu_1, logvar_1, mu_2, logvar_2):
-        return 0.5 * t.sum(logvar_2 - logvar_1 + t.exp(logvar_1) / (t.exp(logvar_2) + 1e-8) +
-                           t.pow(mu_1 - mu_2, 2) / (t.exp(logvar_2) + 1e-8) - 1).mean()
+        return 0.5 * t.sum(logvar_2 - logvar_1 + t.exp(logvar_1) / t.exp(logvar_2 + 1e-8) +
+                           t.pow(mu_1 - mu_2, 2) / t.exp(logvar_2 + 1e-8) - 1).mean()
 
     @staticmethod
     def latent_loss(mu, logvar):
