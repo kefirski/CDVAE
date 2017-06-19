@@ -96,7 +96,6 @@ class CDVAE(nn.Module):
 
         return model_to.sample(bl, encoder_input.size()[1], encoder_input.is_cuda, z)
 
-
     @staticmethod
     def cd_latent_loss(mu_1, logvar_1, mu_2, logvar_2):
         return 0.5 * t.sum(logvar_2 - logvar_1 + t.exp(logvar_1) / (t.exp(logvar_2) + 1e-8) +

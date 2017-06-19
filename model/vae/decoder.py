@@ -14,12 +14,12 @@ class Decoder(nn.Module):
         self.embed_size = embed_size
         self.vocab_size = vocab_size
 
-        self.rnn = nn.LSTM(input_size=self.embed_size + self.latent_size,
-                           hidden_size=self.decoder_size,
-                           num_layers=self.num_layers,
-                           batch_first=True)
+        self.rnn = nn.GRU(input_size=self.embed_size + self.latent_size,
+                          hidden_size=self.decoder_size,
+                          num_layers=self.num_layers,
+                          batch_first=True)
 
-        self.highway = Highway(self.decoder_size, 3, F.elu)
+        self.highway = Highway(self.decoder_size, 2, F.elu)
         self.fc = nn.Linear(self.decoder_size, self.vocab_size)
 
     def forward(self, decoder_input, z, initial_state=None):
