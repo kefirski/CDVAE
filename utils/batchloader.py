@@ -116,6 +116,7 @@ class BatchLoader:
         self.char_to_idx = {'ru': c_to_i_ru, 'en': c_to_i_en}
 
         self.train_data, self.valid_data = (np.load(path) for path in self.tensor_files)
+
         self.data_len = [len(self.train_data[0]), len(self.valid_data[0])]
 
     def next_batch(self, batch_size, target: str, use_cuda=False):

@@ -13,36 +13,36 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='CDVAE')
     parser.add_argument('--num-iterations', type=int, default=450000, metavar='NI',
                         help='num iterations (default: 450000)')
-    parser.add_argument('--batch-size', type=int, default=10, metavar='BS',
-                        help='batch size (default: 10)')
+    parser.add_argument('--batch-size', type=int, default=30, metavar='BS',
+                        help='batch size (default: 30)')
     parser.add_argument('--use-cuda', type=bool, default=False, metavar='CUDA',
                         help='use cuda (default: False)')
-    parser.add_argument('--learning-rate', type=float, default=0.005, metavar='LR',
-                        help='learning rate (default: 0.005)')
+    parser.add_argument('--learning-rate', type=float, default=0.0005, metavar='LR',
+                        help='learning rate (default: 0.0005)')
     parser.add_argument('--dropout', type=float, default=0.12, metavar='TDR',
                         help='dropout (default: 0.12)')
     parser.add_argument('--save', type=str, default=None, metavar='TS',
                         help='path where save trained model to (default: None)')
     args = parser.parse_args()
 
-    batch_loader = BatchLoader()
+    batch_loader = BatchLoader(force_preprocessing=True)
     parameters = Parameters(batch_loader.vocab_size)
 
     cdvae = CDVAE(parameters)
     if args.use_cuda:
         cdvae = cdvae.cuda()
 
-    optimizer_ru = Adam(cdvae.vae_ru.learnable_parameters(), args.learning_rate)
-    optimizer_en = Adam(cdvae.vae_en.learnable_parameters(), args.learning_rate)
+    optimizer_ru = Adam(cdvae.vae_ru.learnable_parameters(), args.learning_rate, eps=1e-4)
+    optimizer_en = Adam(cdvae.vae_en.learnable_parameters(), args.learning_rate, eps=1e-4)
 
     for iteration in range(args.num_iterations):
 
-        (input_ru, dec_input_ru, dec_target_ru), (input_en, dec_input_en, dec_target_en) = \
+        (input, dec_input_ru, dec_target_ru), (input_en, dec_input_en, dec_target_en) = \
             batch_loader.next_batch(args.batch_size, 'train', args.use_cuda)
 
         '''losses from cdvae is tuples of ru and en losses respectively'''
         loss_ru, loss_en = cdvae(args.dropout,
-                                 input_ru, input_en,
+                                 input, input_en,
                                  dec_input_ru, dec_input_en,
                                  dec_target_ru, dec_target_en,
                                  iteration)
@@ -71,21 +71,15 @@ if __name__ == "__main__":
             print('|--------------------------------------|')
 
         if iteration % 20 == 0:
-            (input_ru, _, _), (_, input_en, _) = batch_loader.next_batch(1, 'valid', args.use_cuda)
+            (input, _, _), _ = batch_loader.next_batch(1, 'valid', args.use_cuda)
 
-            translation = cdvae.translate(input_ru, input_en, to='en')
-            print('translation')
-            print(''.join([batch_loader.idx_to_char['ru'][idx] for idx in input_ru.data.cpu().numpy()[0]]))
-            print(''.join([batch_loader.idx_to_char['en'][BatchLoader.sample_character(p)] for p in translation[0]]))
-            print('-----------')
-            print('generation ru')
-            print(cdvae.vae_ru.sample(batch_loader, 120, args.use_cuda))
+            print('vae ru-en')
+            print(''.join([batch_loader.idx_to_char['ru'][idx] for idx in input.data.cpu().numpy()[0]]))
+            print(cdvae.translate(input, ['ru', 'en'], batch_loader))
             print('-----------')
             print('vae ru-ru')
-            (input_ru, dec_input_ru, _), _ = batch_loader.next_batch(1, 'valid', args.use_cuda)
-            out, _, _, _ = cdvae.vae_ru(0., input_ru, dec_input_ru)
-            out = F.softmax(out.squeeze())
-            out = out.data.cpu().numpy()
-            print(''.join([batch_loader.idx_to_char['ru'][idx] for idx in input_ru.squeeze().data.cpu().numpy()]))
-            print(''.join([batch_loader.idx_to_char['ru'][BatchLoader.sample_character(p)] for p in out]))
+            (input, _, _), _ = batch_loader.next_batch(1, 'valid', args.use_cuda)
+            print(''.join([batch_loader.idx_to_char['ru'][idx] for idx in input.data.cpu().numpy()[0]]))
+
+            print(cdvae.translate(input, ['ru', 'ru'], batch_loader))
             print('-----------')
